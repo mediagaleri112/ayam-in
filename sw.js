@@ -1,4 +1,4 @@
-const CACHE_NAME = 'media112-v7';
+const CACHE_NAME = 'media112-v8';
 const urlsToCache = [
     './',
     './index.html',
