@@ -1,0 +1,1755 @@
+/**
+ * media.112 - Main Application (Async Supabase + Anime.js)
+ */
+
+// HTML escape utility — prevents XSS in innerHTML injection
+function esc(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+const App = {
+    currentPage: 'dashboard',
+    editingTransactionId: null,
+    editingProductId: null,
+    editingExpenseId: null,
+    deleteCallback: null,
+
+    // Initialize app
+    async init() {
+        try {
+            this.initTheme();
+            this.bindEvents();
+            await DataStore.init();
+            await this.loadDashboard();
+            this.setTodayDate();
+        } catch (err) {
+            console.error('App init error:', err);
+            this.showToast('Gagal memuat aplikasi: ' + err.message, 'error');
+        }
+    },
+
+    // =====================
+    // THEME (Dark Mode)
+    // =====================
+
+    initTheme() {
+        const saved = localStorage.getItem('media112_theme') || 'light';
+        this.applyTheme(saved);
+    },
+
+    applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        const btn = document.getElementById('themeToggle');
+        btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        localStorage.setItem('media112_theme', theme);
+    },
+
+    toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        this.applyTheme(current === 'dark' ? 'light' : 'dark');
+    },
+
+    // Set today's date for transaction form
+    setTodayDate() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('transactionDate').value = today;
+    },
+
+    // Bind all events
+    bindEvents() {
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = item.dataset.page;
+                this.navigateTo(page);
+            });
+        });
+
+        // Links in cards
+        document.querySelectorAll('.link[data-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigateTo(link.dataset.page);
+            });
+        });
+
+        // Sidebar toggle
+        document.getElementById('menuToggle').addEventListener('click', () => this.toggleSidebar());
+        document.getElementById('sidebarClose').addEventListener('click', () => this.closeSidebar());
+
+        // Quick add button
+        document.getElementById('quickAdd').addEventListener('click', () => this.openModal());
+
+        // Theme toggle
+        document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
+
+        // Transaction form
+        document.getElementById('transactionForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveTransaction();
+        });
+
+        // City select change
+        document.getElementById('selectCity').addEventListener('change', (e) => this.onCityChange(e));
+
+        // Product select change
+        document.getElementById('selectProduct').addEventListener('change', (e) => this.onProductSelectChange(e));
+
+        // Auto-calculate total price
+        ['productPrice', 'productQuantity'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => this.calculateTotal());
+        });
+
+        // City search
+        document.getElementById('searchCity').addEventListener('input', () => this.filterCities());
+
+        // Product form
+        document.getElementById('productForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveProduct();
+        });
+
+        // Expense form
+        document.getElementById('expenseForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveExpense();
+        });
+
+        // Expense auto-calculate total
+        ['expenseQuantity', 'expenseUnitPrice'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => this.calculateExpenseTotal());
+        });
+
+        // Expense search and filters
+        document.getElementById('searchExpense').addEventListener('input', () => this.filterExpenses());
+        document.getElementById('filterExpenseStatus').addEventListener('change', () => this.filterExpenses());
+        document.getElementById('filterExpenseDate').addEventListener('change', () => this.filterExpenses());
+
+        // Cashflow form
+        document.getElementById('cashForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveCashflow();
+        });
+
+        // Cashflow search and filters
+        document.getElementById('searchCashflow').addEventListener('input', () => this.filterCashflow());
+        document.getElementById('filterCashType').addEventListener('change', () => this.filterCashflow());
+        document.getElementById('filterCashDate').addEventListener('change', () => this.filterCashflow());
+
+        // Titip Dana radio toggle
+        document.querySelectorAll('input[name="expensePaymentStatus"]').forEach(radio => {
+            radio.addEventListener('change', () => this.toggleTitipDanaField());
+        });
+
+        // Titip Dana amount calculation
+        document.getElementById('expenseTitipAmount').addEventListener('input', () => this.calculateRemaining());
+
+        // Search and filters
+        document.getElementById('searchTransaction').addEventListener('input', () => this.filterTransactions());
+        document.getElementById('filterStatus').addEventListener('change', () => this.filterTransactions());
+        document.getElementById('filterDate').addEventListener('change', () => this.filterTransactions());
+
+        // Delete confirmation
+        document.getElementById('confirmDelete').addEventListener('click', () => this.confirmDelete());
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    this.closeModalById(overlay);
+                }
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeAllModals();
+            }
+        });
+
+        // Sidebar overlay for mobile
+        const overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        overlay.id = 'sidebarOverlay';
+        overlay.addEventListener('click', () => this.closeSidebar());
+        document.body.appendChild(overlay);
+    },
+
+    // =====================
+    // NAVIGATION
+    // =====================
+
+    async navigateTo(page) {
+        this.currentPage = page;
+
+        // Update nav items
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.page === page);
+        });
+
+        // Update pages
+        document.querySelectorAll('.page').forEach(p => {
+            p.classList.remove('active');
+        });
+        const pageEl = document.getElementById(`page-${page}`);
+        pageEl.classList.add('active');
+
+        // Update page title
+        const titles = {
+            dashboard: 'Dashboard',
+            transactions: 'Transaksi',
+            products: 'Produk',
+            expenses: 'Belanja Bahan',
+            cashflow: 'Kas',
+            reports: 'Laporan'
+        };
+        document.getElementById('pageTitle').textContent = titles[page] || page;
+
+        // Load page data
+        await this.loadPageData(page);
+
+        // Animate page entrance
+        Animations.pageTransition(pageEl);
+
+        // Close sidebar on mobile
+        this.closeSidebar();
+    },
+
+    async loadPageData(page) {
+        switch (page) {
+            case 'dashboard':
+                await this.loadDashboard();
+                break;
+            case 'transactions':
+                await this.loadTransactions();
+                break;
+            case 'products':
+                await this.loadProducts();
+                break;
+            case 'expenses':
+                await this.loadExpenses();
+                break;
+            case 'cashflow':
+                await this.loadCashflow();
+                break;
+        }
+    },
+
+    // =====================
+    // SIDEBAR
+    // =====================
+
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    },
+
+    closeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+    },
+
+    // =====================
+    // DASHBOARD
+    // =====================
+
+    async loadDashboard() {
+        try {
+            const stats = await DataStore.getStats();
+
+            document.getElementById('statIncome').textContent = DataStore.formatCurrency(stats.totalIncome);
+            document.getElementById('statExpense').textContent = DataStore.formatCurrency(stats.totalExpense);
+            document.getElementById('statProfit').textContent = DataStore.formatCurrency(stats.profit);
+            document.getElementById('statCount').textContent = stats.totalTransactions;
+            document.getElementById('statPaid').textContent = stats.paid;
+            document.getElementById('statUnpaid').textContent = stats.unpaid;
+
+            // Animated progress bar
+            Animations.progressBar(document.getElementById('paymentProgress'), stats.paymentProgress);
+
+            // Animate stat cards entrance
+            Animations.statCardsEntrance();
+
+            // Count-up animations
+            Animations.countUp(document.getElementById('statIncome'), stats.totalIncome);
+            Animations.countUp(document.getElementById('statExpense'), stats.totalExpense);
+            Animations.countUp(document.getElementById('statProfit'), stats.profit);
+            Animations.countUpNumber(document.getElementById('statCount'), stats.totalTransactions);
+
+            await this.loadRecentTransactions();
+            await this.loadRecentExpenses();
+        } catch (err) {
+            console.error('loadDashboard error:', err);
+        }
+    },
+
+    async loadRecentTransactions() {
+        const container = document.getElementById('recentTransactions');
+        const transactions = await DataStore.getRecentTransactions(5);
+
+        if (transactions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">📝</span>
+                    <p>Belum ada transaksi</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = transactions.map(t => this.renderTransactionItem(t)).join('');
+        Animations.listStagger(container);
+    },
+
+    async loadRecentExpenses() {
+        const container = document.getElementById('recentExpenses');
+        const expenses = await DataStore.getRecentExpenses(3);
+
+        if (expenses.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">🧾</span>
+                    <p>Belum ada belanja</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = expenses.map(e => this.renderExpenseItem(e, false)).join('');
+        Animations.listStagger(container);
+    },
+
+    // =====================
+    // TRANSACTIONS
+    // =====================
+
+    async loadTransactions() {
+        await this.filterTransactions();
+    },
+
+    async filterTransactions() {
+        try {
+        const search = document.getElementById('searchTransaction').value;
+        const status = document.getElementById('filterStatus').value;
+        const date = document.getElementById('filterDate').value;
+
+        let startDate = '';
+        let endDate = '';
+
+        if (date) {
+            startDate = date + '-01';
+            const [year, month] = date.split('-').map(Number);
+            const d = new Date(year, month, 0);
+            endDate = `${year}-${String(month).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        const transactions = await DataStore.filterTransactions({ search, status, startDate, endDate });
+        this.renderTransactions(transactions);
+        } catch (err) {
+            console.error('filterTransactions error:', err);
+        }
+    },
+
+    renderTransactions(transactions) {
+        const container = document.getElementById('transactionsList');
+
+        if (transactions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">📝</span>
+                    <p>Belum ada transaksi</p>
+                    <button class="btn btn-primary" onclick="App.openModal()">+ Tambah Transaksi</button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = transactions.map(t => this.renderTransactionItem(t, true)).join('');
+        Animations.listStagger(container);
+    },
+
+    renderTransactionItem(t, showActions = false) {
+        const statusClass = t.paymentStatus === 'lunas' ? 'status-lunas' : 'status-belum';
+        const statusText = t.paymentStatus === 'lunas' ? 'Lunas' : 'Belum';
+        const cityLabel = esc(t.cityName || '');
+        const productLabel = esc(t.productName || '');
+        const sizeLabel = t.size ? ` (${esc(t.size)})` : '';
+        const numberLabel = t.numberForm ? ` | No: ${esc(t.numberForm)}` : '';
+
+        return `
+            <div class="transaction-item" data-id="${esc(t.id)}">
+                <div class="transaction-icon">${esc(t.productInitial || '??')}</div>
+                <div class="transaction-info">
+                    <div class="transaction-name">${cityLabel} - ${productLabel}${sizeLabel}</div>
+                    <div class="transaction-meta">
+                        ${esc(t.ply)} Ply | Qty: ${esc(t.quantity || 1)}
+                        ${numberLabel}
+                        ${t.date ? ' | ' + DataStore.formatDate(t.date) : ''}
+                    </div>
+                </div>
+                <div class="transaction-amount">
+                    <div class="transaction-price">${DataStore.formatCurrency(t.totalPrice)}</div>
+                    <span class="transaction-status ${statusClass}">${statusText}</span>
+                </div>
+                ${showActions ? `
+                    <div class="transaction-actions">
+                        ${t.paymentStatus === 'belum' ? `<button class="btn-icon btn-pay" onclick="App.quickPayTransaction('${esc(t.id)}')" title="Tandai Lunas">💰</button>` : ''}
+                        <button class="btn-icon btn-edit" onclick="App.editTransaction('${esc(t.id)}')" title="Edit">✏️</button>
+                        <button class="btn-icon btn-delete" onclick="App.deleteTransaction('${esc(t.id)}')" title="Hapus">🗑️</button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    },
+
+    // =====================
+    // CITIES (Kota)
+    // =====================
+
+    async loadProducts() {
+        await this.filterCities();
+    },
+
+    async filterCities() {
+        try {
+        const search = document.getElementById('searchCity').value.toLowerCase();
+        let cities = await DataStore.getProducts();
+
+        if (search) {
+            cities = cities.filter(c =>
+                c.name.toLowerCase().includes(search) ||
+                c.initial.toLowerCase().includes(search)
+            );
+        }
+
+        this.renderCities(cities);
+        } catch (err) {
+            console.error('filterCities error:', err);
+        }
+    },
+
+    renderCities(cities) {
+        const container = document.getElementById('productsList');
+
+        if (cities.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">🏙️</span>
+                    <p>Belum ada kota</p>
+                    <button class="btn btn-primary" onclick="App.openProductModal()">+ Tambah Kota</button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = cities.map(city => {
+            const products = city.products || [];
+            const productTags = products.map(p =>
+                `<span class="product-tag">${esc(p.name)} ${esc(p.size)}</span>`
+            ).join('');
+
+            return `
+                <div class="product-card" data-id="${esc(city.id)}">
+                    <div class="product-header">
+                        <div class="product-initial">${esc(city.initial)}</div>
+                        <div class="product-actions">
+                            <button class="btn-icon btn-edit" onclick="App.editProduct('${esc(city.id)}')" title="Edit">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="App.deleteProduct('${esc(city.id)}')" title="Hapus">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="product-name">${esc(city.name)}</div>
+                    <div class="product-details">
+                        ${productTags}
+                    </div>
+                    ${city.numberForm ? `<div class="product-number">No: ${esc(city.numberForm)}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+
+        Animations.listStagger(container);
+    },
+
+    // =====================
+    // EXPENSES (Belanja Bahan)
+    // =====================
+
+    async loadExpenses() {
+        await this.updateExpenseSummary();
+        await this.filterExpenses();
+    },
+
+    async updateExpenseSummary() {
+        try {
+        const totalAll = await DataStore.getTotalExpenseAmount();
+        const totalPaid = await DataStore.getPaidExpenseAmount();
+        const totalUnpaid = await DataStore.getUnpaidExpenseAmount();
+        const totalTitip = await DataStore.getTitipDanaAmount();
+
+        document.getElementById('expenseTotalAll').textContent = DataStore.formatCurrency(totalAll);
+        document.getElementById('expenseTotalPaid').textContent = DataStore.formatCurrency(totalPaid);
+        document.getElementById('expenseTotalUnpaid').textContent = DataStore.formatCurrency(totalUnpaid);
+        document.getElementById('expenseTotalTitip').textContent = DataStore.formatCurrency(totalTitip);
+        } catch (err) {
+            console.error('updateExpenseSummary error:', err);
+        }
+    },
+
+    async filterExpenses() {
+        try {
+        const search = document.getElementById('searchExpense').value;
+        const status = document.getElementById('filterExpenseStatus').value;
+        const date = document.getElementById('filterExpenseDate').value;
+
+        let startDate = '';
+        let endDate = '';
+
+        if (date) {
+            startDate = date + '-01';
+            const [year, month] = date.split('-').map(Number);
+            const d = new Date(year, month, 0);
+            endDate = `${year}-${String(month).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        const expenses = await DataStore.filterExpenses({ search, status, startDate, endDate });
+        this.renderExpenses(expenses);
+        } catch (err) {
+            console.error('filterExpenses error:', err);
+        }
+    },
+
+    renderExpenses(expenses) {
+        const container = document.getElementById('expensesList');
+
+        if (expenses.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">🧾</span>
+                    <p>Belum ada catatan belanja bahan</p>
+                    <button class="btn btn-primary" onclick="App.openExpenseModal()">+ Tambah Belanja</button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = expenses.map(e => this.renderExpenseItem(e)).join('');
+        Animations.listStagger(container);
+    },
+
+    renderExpenseItem(e, showActions = true) {
+        const statusClass = e.paymentStatus === 'lunas' ? 'status-lunas' :
+                           e.paymentStatus === 'titip' ? 'status-titip' : 'status-belum';
+        const statusText = e.paymentStatus === 'lunas' ? 'Lunas' :
+                          e.paymentStatus === 'titip' ? 'Titip Dana' : 'Belum';
+
+        let titipInfo = '';
+        if (e.paymentStatus === 'titip' && e.titipAmount) {
+            titipInfo = `<br><span class="titip-info">Dititip: ${DataStore.formatCurrency(e.titipAmount)} | Sisa: ${DataStore.formatCurrency(e.remainingAmount || 0)}</span>`;
+        }
+
+        return `
+            <div class="transaction-item" data-id="${esc(e.id)}">
+                <div class="transaction-icon expense-icon">🧾</div>
+                <div class="transaction-info">
+                    <div class="transaction-name">${esc(e.name)}</div>
+                    <div class="transaction-meta">
+                        Qty: ${esc(e.quantity)} × ${DataStore.formatCurrency(e.unitPrice)}
+                        ${e.date ? ' | ' + DataStore.formatDate(e.date) : ''}
+                        ${titipInfo}
+                    </div>
+                </div>
+                <div class="transaction-amount">
+                    <div class="transaction-price">${DataStore.formatCurrency(e.totalCost)}</div>
+                    <span class="transaction-status ${statusClass}">${statusText}</span>
+                </div>
+                ${showActions ? `
+                <div class="transaction-actions">
+                    ${e.paymentStatus === 'belum' || e.paymentStatus === 'titip' ? `<button class="btn-icon btn-pay" onclick="App.quickPayExpense('${esc(e.id)}')" title="Tandai Lunas">💰</button>` : ''}
+                    <button class="btn-icon btn-edit" onclick="App.editExpense('${esc(e.id)}')" title="Edit">✏️</button>
+                    <button class="btn-icon btn-delete" onclick="App.deleteExpense('${esc(e.id)}')" title="Hapus">🗑️</button>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    },
+
+    async openExpenseModal(expenseId = null) {
+        try {
+            this.editingExpenseId = expenseId;
+            const modal = document.getElementById('expenseModal');
+            const title = document.getElementById('expenseModalTitle');
+            const form = document.getElementById('expenseForm');
+
+            // Populate linked transaction dropdown
+            const txSelect = document.getElementById('expenseLinkedTransaction');
+            const transactions = await DataStore.getTransactions();
+            txSelect.innerHTML = '<option value="">- Tidak di-link -</option>' +
+                transactions.map(t => `<option value="${esc(t.id)}">${esc(t.productInitial)} - ${esc(t.productName)} (${DataStore.formatDate(t.date)})</option>`).join('');
+
+            if (expenseId) {
+                const e = await DataStore.getExpense(expenseId);
+                if (e) {
+                    title.textContent = 'Edit Belanja Bahan';
+                    document.getElementById('expenseId').value = e.id;
+                    document.getElementById('expenseName').value = e.name;
+                    document.getElementById('expenseQuantity').value = e.quantity;
+                    document.getElementById('expenseUnitPrice').value = e.unitPrice;
+                    document.getElementById('expenseTotalCost').value = DataStore.formatCurrency(e.totalCost);
+                    document.querySelector(`input[name="expensePaymentStatus"][value="${e.paymentStatus}"]`).checked = true;
+                    document.getElementById('expenseTitipAmount').value = e.titipAmount || '';
+                    document.getElementById('expenseDate').value = e.date;
+                    document.getElementById('expenseLinkedTransaction').value = e.linkedTransactionId || '';
+                    document.getElementById('expenseNote').value = e.note || '';
+                    this.calculateExpenseTotal();
+                    this.toggleTitipDanaField();
+                }
+            } else {
+                title.textContent = 'Tambah Belanja Bahan';
+                form.reset();
+                document.getElementById('expenseId').value = '';
+                document.getElementById('expenseQuantity').value = '1';
+                document.querySelector('input[name="expensePaymentStatus"][value="lunas"]').checked = true;
+                document.getElementById('expenseTitipAmount').value = '';
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('expenseDate').value = today;
+                document.getElementById('expenseTotalCost').value = '';
+                this.toggleTitipDanaField();
+            }
+
+            Animations.modalOpen('expenseModal');
+        } catch (err) {
+            console.error('openExpenseModal error:', err);
+            this.showToast('Gagal membuka form belanja: ' + err.message, 'error');
+        }
+    },
+
+    closeExpenseModal() {
+        Animations.modalClose('expenseModal', () => {
+            this.editingExpenseId = null;
+            document.getElementById('titipDanaField').style.display = 'none';
+        });
+    },
+
+    toggleTitipDanaField() {
+        const selected = document.querySelector('input[name="expensePaymentStatus"]:checked').value;
+        const field = document.getElementById('titipDanaField');
+        if (selected === 'titip') {
+            field.style.display = 'block';
+            this.calculateRemaining();
+        } else {
+            field.style.display = 'none';
+        }
+    },
+
+    calculateRemaining() {
+        const total = parseFloat(document.getElementById('expenseQuantity').value || 0) *
+                      parseFloat(document.getElementById('expenseUnitPrice').value || 0);
+        const titip = parseFloat(document.getElementById('expenseTitipAmount').value) || 0;
+        const remaining = total - titip;
+        document.getElementById('expenseRemaining').textContent = DataStore.formatCurrency(Math.max(0, remaining));
+    },
+
+    calculateExpenseTotal() {
+        const qty = parseFloat(document.getElementById('expenseQuantity').value) || 0;
+        const price = parseFloat(document.getElementById('expenseUnitPrice').value) || 0;
+        const total = qty * price;
+        document.getElementById('expenseTotalCost').value = DataStore.formatCurrency(total);
+        this.calculateRemaining();
+    },
+
+    async saveExpense() {
+        try {
+            const id = document.getElementById('expenseId').value;
+            const totalCost = (parseInt(document.getElementById('expenseQuantity').value) || 1) *
+                              (parseFloat(document.getElementById('expenseUnitPrice').value) || 0);
+            const paymentStatus = document.querySelector('input[name="expensePaymentStatus"]:checked').value;
+            const titipAmount = paymentStatus === 'titip' ?
+                               (parseFloat(document.getElementById('expenseTitipAmount').value) || 0) : 0;
+
+            const data = {
+                name: document.getElementById('expenseName').value,
+                quantity: parseInt(document.getElementById('expenseQuantity').value) || 1,
+                unitPrice: parseFloat(document.getElementById('expenseUnitPrice').value) || 0,
+                totalCost: totalCost,
+                paymentStatus: paymentStatus,
+                titipAmount: titipAmount,
+                remainingAmount: totalCost - titipAmount,
+                date: document.getElementById('expenseDate').value,
+                linkedTransactionId: document.getElementById('expenseLinkedTransaction').value || null,
+                note: document.getElementById('expenseNote').value
+            };
+
+            if (id) {
+                await DataStore.updateExpense(id, data);
+                this.showToast('Belanja bahan berhasil diupdate', 'success');
+            } else {
+                await DataStore.addExpense(data);
+                this.showToast('Belanja bahan berhasil ditambahkan', 'success');
+            }
+
+            this.closeExpenseModal();
+            await this.loadPageData(this.currentPage);
+        } catch (err) {
+            console.error('saveExpense error:', err);
+            this.showToast('Gagal simpan belanja: ' + err.message, 'error');
+        }
+    },
+
+    async editExpense(id) {
+        await this.openExpenseModal(id);
+    },
+
+    async deleteExpense(id) {
+        this.openDeleteModal(async () => {
+            await DataStore.deleteExpense(id);
+            this.showToast('Belanja bahan berhasil dihapus', 'success');
+            await this.loadPageData(this.currentPage);
+        });
+    },
+
+    // =====================
+    // CASHFLOW (Kas)
+    // =====================
+
+    async loadCashflow() {
+        await this.updateCashflowSummary();
+        await this.filterCashflow();
+    },
+
+    async updateCashflowSummary() {
+        try {
+        const balance = await DataStore.getCurrentBalance();
+        const totalIn = await DataStore.getTotalCashIn();
+        const totalOut = await DataStore.getTotalCashOut();
+        const net = await DataStore.getNetCashflow();
+
+        document.getElementById('cashBalance').textContent = DataStore.formatCurrency(balance);
+        document.getElementById('cashTotalIn').textContent = DataStore.formatCurrency(totalIn);
+        document.getElementById('cashTotalOut').textContent = DataStore.formatCurrency(totalOut);
+        document.getElementById('cashNet').textContent = DataStore.formatCurrency(net);
+        } catch (err) {
+            console.error('updateCashflowSummary error:', err);
+        }
+    },
+
+    async filterCashflow() {
+        try {
+        const search = document.getElementById('searchCashflow').value;
+        const type = document.getElementById('filterCashType').value;
+        const date = document.getElementById('filterCashDate').value;
+
+        let startDate = '';
+        let endDate = '';
+
+        if (date) {
+            startDate = date + '-01';
+            const [year, month] = date.split('-').map(Number);
+            const d = new Date(year, month, 0);
+            endDate = `${year}-${String(month).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        const items = await DataStore.filterCashflow({ search, type, startDate, endDate });
+        this.renderCashflow(items);
+        } catch (err) {
+            console.error('filterCashflow error:', err);
+        }
+    },
+
+    renderCashflow(items) {
+        const container = document.getElementById('cashflowList');
+
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">💵</span>
+                    <p>Belum ada transaksi kas</p>
+                    <button class="btn btn-primary" onclick="App.openCashModal('in')">+ Setor Kas</button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = items.map(item => this.renderCashflowItem(item)).join('');
+        Animations.listStagger(container);
+    },
+
+    renderCashflowItem(item) {
+        const typeClass = item.type === 'in' ? 'cash-in-icon' :
+                         item.type === 'out' ? 'cash-out-icon' : 'cash-adjust-icon';
+        const typeIcon = item.type === 'in' ? '💰' :
+                        item.type === 'out' ? '💸' : '⚙️';
+        const typeText = item.type === 'in' ? 'Masuk' :
+                        item.type === 'out' ? 'Keluar' : 'Adjust';
+        const amountClass = item.type === 'in' ? 'cash-in' :
+                           item.type === 'out' ? 'cash-out' : '';
+        const amountPrefix = item.type === 'in' ? '+' :
+                            item.type === 'out' ? '-' : '';
+
+        return `
+            <div class="transaction-item" data-id="${esc(item.id)}">
+                <div class="transaction-icon ${typeClass}">${typeIcon}</div>
+                <div class="transaction-info">
+                    <div class="transaction-name">${esc(item.description)}</div>
+                    <div class="transaction-meta">
+                        ${typeText} | ${esc(item.category || 'Operasional')}
+                        ${item.date ? ' | ' + DataStore.formatDate(item.date) : ''}
+                    </div>
+                </div>
+                <div class="transaction-amount">
+                    <div class="transaction-price ${amountClass}">${amountPrefix}${DataStore.formatCurrency(item.amount)}</div>
+                    <span class="transaction-status status-titip">${typeText}</span>
+                </div>
+                <div class="transaction-actions">
+                    <button class="btn-icon btn-edit" onclick="App.editCashflow('${esc(item.id)}')" title="Edit">✏️</button>
+                    <button class="btn-icon btn-delete" onclick="App.deleteCashflow('${esc(item.id)}')" title="Hapus">🗑️</button>
+                </div>
+            </div>
+        `;
+    },
+
+    openCashModal(type = 'in') {
+        const modal = document.getElementById('cashModal');
+        const title = document.getElementById('cashModalTitle');
+        const submitBtn = document.getElementById('cashSubmitBtn');
+
+        document.getElementById('cashId').value = '';
+        document.getElementById('cashType').value = type;
+        document.getElementById('cashAmount').value = '';
+        document.getElementById('cashDescription').value = '';
+        document.getElementById('cashCategory').value = 'operasional';
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('cashDate').value = today;
+
+        if (type === 'in') {
+            title.textContent = 'Setor Kas';
+            submitBtn.textContent = 'Setor';
+            submitBtn.className = 'btn btn-success';
+        } else if (type === 'out') {
+            title.textContent = 'Tarik Kas';
+            submitBtn.textContent = 'Tarik';
+            submitBtn.className = 'btn btn-danger';
+        } else {
+            title.textContent = 'Adjust Saldo';
+            submitBtn.textContent = 'Simpan';
+            submitBtn.className = 'btn btn-primary';
+        }
+
+        Animations.modalOpen('cashModal');
+    },
+
+    closeCashModal() {
+        Animations.modalClose('cashModal');
+    },
+
+    async editCashflow(id) {
+        const item = await DataStore.getCashflowItem(id);
+        if (!item) return;
+
+        const modal = document.getElementById('cashModal');
+        const title = document.getElementById('cashModalTitle');
+        const submitBtn = document.getElementById('cashSubmitBtn');
+
+        document.getElementById('cashId').value = item.id;
+        document.getElementById('cashType').value = item.type;
+        document.getElementById('cashAmount').value = item.amount;
+        document.getElementById('cashDescription').value = item.description;
+        document.getElementById('cashCategory').value = item.category || 'operasional';
+        document.getElementById('cashDate').value = item.date;
+
+        title.textContent = 'Edit Transaksi Kas';
+        submitBtn.textContent = 'Simpan';
+        submitBtn.className = 'btn btn-primary';
+
+        Animations.modalOpen('cashModal');
+    },
+
+    async saveCashflow() {
+        try {
+            const id = document.getElementById('cashId').value;
+            const type = document.getElementById('cashType').value;
+            const data = {
+                type: type,
+                amount: parseFloat(document.getElementById('cashAmount').value) || 0,
+                description: document.getElementById('cashDescription').value,
+                category: document.getElementById('cashCategory').value,
+                date: document.getElementById('cashDate').value
+            };
+
+            if (id) {
+                await DataStore.updateCashflow(id, data);
+                this.showToast('Transaksi kas berhasil diupdate', 'success');
+            } else {
+                await DataStore.addCashflow(data);
+                this.showToast(type === 'in' ? 'Setor kas berhasil' :
+                              type === 'out' ? 'Tarik kas berhasil' : 'Saldo berhasil diadjust', 'success');
+            }
+
+            this.closeCashModal();
+            await this.loadPageData(this.currentPage);
+        } catch (err) {
+            console.error('saveCashflow error:', err);
+            this.showToast('Gagal simpan kas: ' + err.message, 'error');
+        }
+    },
+
+    async deleteCashflow(id) {
+        this.openDeleteModal(async () => {
+            await DataStore.deleteCashflow(id);
+            this.showToast('Transaksi kas berhasil dihapus', 'success');
+            await this.loadPageData(this.currentPage);
+        });
+    },
+
+    // =====================
+    // MODALS
+    // =====================
+
+    async openModal(transactionId = null) {
+        try {
+            this.editingTransactionId = transactionId;
+            const modal = document.getElementById('transactionModal');
+            const title = document.getElementById('modalTitle');
+            const form = document.getElementById('transactionForm');
+
+            // Populate city dropdown
+            const citySelect = document.getElementById('selectCity');
+            const cities = await DataStore.getProducts();
+            citySelect.innerHTML = '<option value="">- Pilih Kota -</option>' +
+                cities.map(c => `<option value="${c.id}">${c.name} (${c.initial})</option>`).join('');
+
+            // Reset product dropdown
+            const productSelect = document.getElementById('selectProduct');
+            productSelect.innerHTML = '<option value="">- Pilih kota terlebih dahulu -</option>';
+            productSelect.disabled = true;
+
+            if (transactionId) {
+                const t = await DataStore.getTransaction(transactionId);
+                if (t) {
+                    title.textContent = 'Edit Transaksi';
+                    document.getElementById('transactionId').value = t.id;
+                    document.getElementById('selectCity').value = t.cityId || '';
+                    await this.onCityChange({ target: { value: t.cityId || '' } }, t.productId);
+                    document.getElementById('numberForm').value = t.numberForm || '';
+                    document.getElementById('productPly').value = t.ply || 4;
+                    document.getElementById('productPrice').value = t.pricePerTitle || 0;
+                    document.getElementById('productQuantity').value = t.quantity || 1;
+                    document.getElementById('totalPrice').value = DataStore.formatCurrency(t.totalPrice || 0);
+                    document.querySelector(`input[name="paymentStatus"][value="${t.paymentStatus}"]`).checked = true;
+                    document.getElementById('transactionDate').value = t.date;
+                    document.getElementById('transactionNote').value = t.note || '';
+                }
+            } else {
+                title.textContent = 'Tambah Transaksi';
+                form.reset();
+                document.getElementById('transactionId').value = '';
+                document.getElementById('productPly').value = '4';
+                document.getElementById('productQuantity').value = '1';
+                document.querySelector('input[name="paymentStatus"][value="lunas"]').checked = true;
+                this.setTodayDate();
+                document.getElementById('totalPrice').value = '';
+            }
+
+            Animations.modalOpen('transactionModal');
+        } catch (err) {
+            console.error('openModal error:', err);
+            this.showToast('Gagal membuka form: ' + err.message, 'error');
+        }
+    },
+
+    closeModal() {
+        Animations.modalClose('transactionModal', () => {
+            this.editingTransactionId = null;
+        });
+    },
+
+    closeModalById(overlay) {
+        Animations.modalClose(overlay.id, () => {
+            this.editingTransactionId = null;
+            this.editingProductId = null;
+            this.editingExpenseId = null;
+            this.deleteCallback = null;
+        });
+    },
+
+    async onCityChange(e, preselectProductId = null) {
+        const cityId = e.target.value;
+        const productSelect = document.getElementById('selectProduct');
+        const initialInput = document.getElementById('productInitial');
+        const numberFormInput = document.getElementById('numberForm');
+        const sizeInput = document.getElementById('productSize');
+
+        if (!cityId) {
+            productSelect.innerHTML = '<option value="">- Pilih kota terlebih dahulu -</option>';
+            productSelect.disabled = true;
+            initialInput.value = '';
+            numberFormInput.value = '';
+            sizeInput.value = '';
+            return;
+        }
+
+        const city = await DataStore.getProduct(cityId);
+        if (!city) return;
+
+        initialInput.value = city.initial;
+        numberFormInput.value = city.numberForm || '';
+
+        const products = city.products || [];
+        productSelect.innerHTML = '<option value="">- Pilih Produk -</option>' +
+            products.map(p => `<option value="${p.id}" ${preselectProductId === p.id ? 'selected' : ''}>${p.name} ${p.size}</option>`).join('');
+        productSelect.disabled = false;
+
+        if (preselectProductId) {
+            await this.onProductSelectChange({ target: { value: preselectProductId } });
+        }
+    },
+
+    async onProductSelectChange(e) {
+        const productId = e.target.value;
+        const cityId = document.getElementById('selectCity').value;
+        const sizeInput = document.getElementById('productSize');
+
+        if (!productId || !cityId) {
+            sizeInput.value = '';
+            return;
+        }
+
+        const city = await DataStore.getProduct(cityId);
+        if (!city) return;
+
+        const product = (city.products || []).find(p => p.id === productId);
+        if (product) {
+            sizeInput.value = product.size;
+            document.getElementById('productPrice').value = product.defaultPrice || 0;
+            this.calculateTotal();
+        }
+    },
+
+    async openProductModal(productId = null) {
+        try {
+            this.editingProductId = productId;
+            const modal = document.getElementById('productModal');
+            const title = document.getElementById('productModalTitle');
+            const form = document.getElementById('productForm');
+            const productsList = document.getElementById('cityProductsList');
+
+            const defaultProducts = DataStore.getDefaultProducts()[0].products;
+
+            if (productId) {
+                const p = await DataStore.getProduct(productId);
+                if (p) {
+                    title.textContent = 'Edit Kota';
+                    document.getElementById('editProductId').value = p.id;
+                    document.getElementById('editProductName').value = p.name;
+                    document.getElementById('editProductInitial').value = p.initial;
+                    document.getElementById('editNumberForm').value = p.numberForm || '';
+
+                    const products = p.products || [];
+                    productsList.innerHTML = products.map((prod, i) => `
+                        <div class="city-product-item">
+                            <span class="product-num">${i + 1}.</span>
+                            <input type="text" value="${prod.name}" class="city-prod-name" placeholder="Nama Produk">
+                            <span class="product-size">${prod.size}</span>
+                            <input type="number" value="${prod.defaultPrice || 0}" class="city-prod-price" placeholder="Harga" min="0">
+                        </div>
+                    `).join('');
+                }
+            } else {
+                title.textContent = 'Tambah Kota';
+                form.reset();
+                document.getElementById('editProductId').value = '';
+
+                productsList.innerHTML = defaultProducts.map((prod, i) => `
+                    <div class="city-product-item">
+                        <span class="product-num">${i + 1}.</span>
+                        <input type="text" value="${prod.name}" class="city-prod-name" placeholder="Nama Produk">
+                        <span class="product-size">${prod.size}</span>
+                        <input type="number" value="0" class="city-prod-price" placeholder="Harga" min="0">
+                    </div>
+                `).join('');
+            }
+
+            Animations.modalOpen('productModal');
+        } catch (err) {
+            console.error('openProductModal error:', err);
+            this.showToast('Gagal membuka form kota: ' + err.message, 'error');
+        }
+    },
+
+    closeProductModal() {
+        Animations.modalClose('productModal', () => {
+            this.editingProductId = null;
+        });
+    },
+
+    openDeleteModal(callback) {
+        this.deleteCallback = callback;
+        Animations.modalOpen('deleteModal');
+    },
+
+    closeDeleteModal() {
+        Animations.modalClose('deleteModal', () => {
+            this.deleteCallback = null;
+        });
+    },
+
+    closeAllModals() {
+        document.querySelectorAll('.modal-overlay.active').forEach(m => {
+            Animations.modalClose(m.id);
+        });
+        this.editingTransactionId = null;
+        this.editingProductId = null;
+        this.editingExpenseId = null;
+        this.deleteCallback = null;
+    },
+
+    // =====================
+    // FORMS
+    // =====================
+
+    calculateTotal() {
+        const price = parseFloat(document.getElementById('productPrice').value) || 0;
+        const quantity = parseInt(document.getElementById('productQuantity').value) || 1;
+        const total = price * quantity;
+        document.getElementById('totalPrice').value = DataStore.formatCurrency(total);
+    },
+
+    async saveTransaction() {
+        try {
+            const id = document.getElementById('transactionId').value;
+            const cityId = document.getElementById('selectCity').value;
+            const productId = document.getElementById('selectProduct').value;
+            const city = await DataStore.getProduct(cityId);
+            const product = city ? (city.products || []).find(p => p.id === productId) : null;
+
+            const data = {
+                cityId: cityId,
+                cityName: city ? city.name : '',
+                productId: productId,
+                productName: product ? product.name : '',
+                productInitial: city ? city.initial : '',
+                numberForm: document.getElementById('numberForm').value,
+                size: product ? product.size : '',
+                ply: parseInt(document.getElementById('productPly').value),
+                pricePerTitle: parseFloat(document.getElementById('productPrice').value) || 0,
+                quantity: parseInt(document.getElementById('productQuantity').value) || 1,
+                totalPrice: (parseFloat(document.getElementById('productPrice').value) || 0) *
+                            (parseInt(document.getElementById('productQuantity').value) || 1),
+                paymentStatus: document.querySelector('input[name="paymentStatus"]:checked').value,
+                materialCost: 0,
+                date: document.getElementById('transactionDate').value,
+                note: document.getElementById('transactionNote').value
+            };
+
+            if (id) {
+                await DataStore.updateTransaction(id, data);
+                this.showToast('Transaksi berhasil diupdate', 'success');
+            } else {
+                await DataStore.addTransaction(data);
+                this.showToast('Transaksi berhasil ditambahkan', 'success');
+            }
+
+            this.closeModal();
+            await this.loadPageData(this.currentPage);
+        } catch (err) {
+            console.error('saveTransaction error:', err);
+            this.showToast('Gagal simpan transaksi: ' + err.message, 'error');
+        }
+    },
+
+    async saveProduct() {
+        try {
+            const id = document.getElementById('editProductId').value;
+            const name = document.getElementById('editProductName').value.toUpperCase();
+            const initial = document.getElementById('editProductInitial').value.toUpperCase();
+            const numberForm = document.getElementById('editNumberForm').value;
+
+            const productItems = document.querySelectorAll('.city-product-item');
+            const products = [];
+            productItems.forEach((item, i) => {
+                const prodName = item.querySelector('.city-prod-name').value;
+                const prodPrice = parseFloat(item.querySelector('.city-prod-price').value) || 0;
+                const sizeEl = item.querySelector('.product-size');
+                const size = sizeEl ? sizeEl.textContent : (i < 3 ? '1/2' : '1/4');
+                products.push({
+                    id: DataStore.generateId(),
+                    name: prodName,
+                    size: size,
+                    defaultPrice: prodPrice
+                });
+            });
+
+            const data = {
+                name: name,
+                initial: initial,
+                numberForm: numberForm,
+                products: products
+            };
+
+            if (id) {
+                await DataStore.updateProduct(id, data);
+                this.showToast('Kota berhasil diupdate', 'success');
+            } else {
+                await DataStore.addProduct(data);
+                this.showToast('Kota berhasil ditambahkan', 'success');
+            }
+
+            this.closeProductModal();
+            await this.loadPageData(this.currentPage);
+        } catch (err) {
+            console.error('saveProduct error:', err);
+            this.showToast('Gagal simpan kota: ' + err.message, 'error');
+        }
+    },
+
+    // =====================
+    // CRUD OPERATIONS
+    // =====================
+
+    async editTransaction(id) {
+        await this.openModal(id);
+    },
+
+    async deleteTransaction(id) {
+        this.openDeleteModal(async () => {
+            await DataStore.deleteTransaction(id);
+            this.showToast('Transaksi berhasil dihapus', 'success');
+            await this.loadPageData(this.currentPage);
+        });
+    },
+
+    async editProduct(id) {
+        await this.openProductModal(id);
+    },
+
+    async deleteProduct(id) {
+        this.openDeleteModal(async () => {
+            await DataStore.deleteProduct(id);
+            this.showToast('Produk berhasil dihapus', 'success');
+            await this.loadPageData(this.currentPage);
+        });
+    },
+
+    confirmDelete() {
+        if (this.deleteCallback) {
+            this.deleteCallback();
+        }
+        this.closeDeleteModal();
+    },
+
+    // =====================
+    // REPORTS
+    // =====================
+
+    setReportToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('reportStartDate').value = today;
+        document.getElementById('reportEndDate').value = today;
+    },
+
+    setReportThisMonth() {
+        const now = new Date();
+        const first = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const lastDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+        document.getElementById('reportStartDate').value = first;
+        document.getElementById('reportEndDate').value = lastDay;
+    },
+
+    setReportLastMonth() {
+        const now = new Date();
+        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const first = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-01`;
+        const last = new Date(prev.getFullYear(), prev.getMonth() + 1, 0);
+        const lastDay = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+        document.getElementById('reportStartDate').value = first;
+        document.getElementById('reportEndDate').value = lastDay;
+    },
+
+    async generateReport() {
+        try {
+        const startDate = document.getElementById('reportStartDate').value;
+        const endDate = document.getElementById('reportEndDate').value;
+        const report = await DataStore.generateAdvancedReport(startDate, endDate);
+
+        const container = document.getElementById('reportContent');
+
+        if (report.transactions.length === 0 && report.expenses.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">📈</span>
+                    <p>Tidak ada data pada periode ini</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Build product summary table
+        let productRows = '';
+        for (const [name, data] of Object.entries(report.byProduct)) {
+            const prodProfit = data.total - data.material;
+            const prodMargin = data.total > 0 ? Math.round((prodProfit / data.total) * 10000) / 100 : 0;
+            productRows += `
+                <tr>
+                    <td>${esc(name)}</td>
+                    <td>${esc(data.count)}</td>
+                    <td>${DataStore.formatCurrency(data.total)}</td>
+                    <td>${DataStore.formatCurrency(prodProfit)}</td>
+                    <td>${prodMargin}%</td>
+                </tr>
+            `;
+        }
+
+        // Build transaction details table
+        let transactionRows = '';
+        report.transactions.forEach(t => {
+            const cityLabel = esc(t.cityName || '');
+            const productLabel = esc(t.productName || '');
+            const numberLabel = t.numberForm ? ` | No: ${esc(t.numberForm)}` : '';
+            transactionRows += `
+                <tr>
+                    <td>${DataStore.formatDate(t.date)}</td>
+                    <td>${cityLabel} - ${productLabel} (${esc(t.size || '')})</td>
+                    <td>${esc(t.ply)} Ply</td>
+                    <td>${esc(t.quantity)}</td>
+                    <td>${numberLabel.replace(' | ', '')}</td>
+                    <td>${DataStore.formatCurrency(t.totalPrice)}</td>
+                    <td><span class="transaction-status ${t.paymentStatus === 'lunas' ? 'status-lunas' : 'status-belum'}">${t.paymentStatus === 'lunas' ? 'Lunas' : 'Belum'}</span></td>
+                </tr>
+            `;
+        });
+
+        // Build expenses table
+        let expenseRows = '';
+        report.expenses.forEach(e => {
+            const statusClass = e.paymentStatus === 'lunas' ? 'status-lunas' :
+                               e.paymentStatus === 'titip' ? 'status-titip' : 'status-belum';
+            const statusText = e.paymentStatus === 'lunas' ? 'Lunas' :
+                              e.paymentStatus === 'titip' ? 'Titip Dana' : 'Belum';
+            const titipInfo = e.paymentStatus === 'titip' ?
+                `<br><small>Dititip: ${DataStore.formatCurrency(e.titipAmount || 0)} | Sisa: ${DataStore.formatCurrency(e.remainingAmount || 0)}</small>` : '';
+            expenseRows += `
+                <tr>
+                    <td>${DataStore.formatDate(e.date)}</td>
+                    <td>${esc(e.name)}</td>
+                    <td>${esc(e.quantity)}</td>
+                    <td>${DataStore.formatCurrency(e.unitPrice)}</td>
+                    <td>${DataStore.formatCurrency(e.totalCost)}</td>
+                    <td>-</td>
+                    <td><span class="transaction-status ${statusClass}">${statusText}</span>${titipInfo}</td>
+                </tr>
+            `;
+        });
+
+        // Top products rows
+        let topProductRows = '';
+        report.topProducts.forEach(p => {
+            topProductRows += `
+                <tr>
+                    <td>#${esc(p.rank)}</td>
+                    <td>${esc(p.initial)} - ${esc(p.name)}</td>
+                    <td>${esc(p.count)}</td>
+                    <td>${DataStore.formatCurrency(p.totalRevenue)}</td>
+                    <td>${DataStore.formatCurrency(p.totalCost)}</td>
+                    <td>${DataStore.formatCurrency(p.totalProfit)}</td>
+                    <td>${DataStore.formatCurrency(p.avgProfitPerTx)}</td>
+                </tr>
+            `;
+        });
+
+        // Monthly trend
+        const trend = report.monthlyTrend;
+        const trendDirection = trend.changePercent >= 0 ? '📈' : '📉';
+        const trendClass = trend.changePercent >= 0 ? 'trend-up' : 'trend-down';
+
+        // Projection
+        const proj = report.profitProjection;
+
+        container.innerHTML = `
+            <div class="report-section">
+                <h3>Ringkasan Periode ${report.dateRange.start} - ${report.dateRange.end}</h3>
+                <div class="report-summary">
+                    <div class="summary-item income">
+                        <span class="summary-label">Total Pendapatan</span>
+                        <span class="summary-value">${DataStore.formatCurrency(report.totalIncome)}</span>
+                    </div>
+                    <div class="summary-item expense">
+                        <span class="summary-label">Total Pengeluaran</span>
+                        <span class="summary-value">${DataStore.formatCurrency(report.totalExpense)}</span>
+                        <span class="summary-sub">Material: ${DataStore.formatCurrency(report.txExpense)}<br>Bahan: ${DataStore.formatCurrency(report.bahanExpense)}</span>
+                    </div>
+                    <div class="summary-item profit">
+                        <span class="summary-label">Laba Bersih</span>
+                        <span class="summary-value">${DataStore.formatCurrency(report.profit)}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h3>Analisis Matematis</h3>
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <div class="analytics-icon">📊</div>
+                        <div class="analytics-info">
+                            <span class="analytics-label">Margin Keuntungan</span>
+                            <span class="analytics-value ${report.profitMargin >= 50 ? 'positive' : report.profitMargin >= 20 ? 'neutral' : 'negative'}">${report.profitMargin}%</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-icon">📦</div>
+                        <div class="analytics-info">
+                            <span class="analytics-label">Efisiensi Bahan</span>
+                            <span class="analytics-value ${report.materialEfficiency <= 30 ? 'positive' : report.materialEfficiency <= 50 ? 'neutral' : 'negative'}">${report.materialEfficiency}%</span>
+                            <span class="analytics-desc">${report.materialEfficiency <= 30 ? 'Sangat Efisien' : report.materialEfficiency <= 50 ? 'Cukup Efisien' : 'Perlu Dioptimasi'}</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-icon">${trendDirection}</div>
+                        <div class="analytics-info">
+                            <span class="analytics-label">Tren Bulanan</span>
+                            <span class="analytics-value ${trendClass}">${trend.changePercent >= 0 ? '+' : ''}${trend.changePercent}%</span>
+                            <span class="analytics-desc">Bulan ini: ${DataStore.formatCurrency(trend.currentMonth.profit)}<br>Bulan lalu: ${DataStore.formatCurrency(trend.previousMonth.profit)}</span>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-icon">🔮</div>
+                        <div class="analytics-info">
+                            <span class="analytics-label">Proyeksi Bulan Depan</span>
+                            <span class="analytics-value">${DataStore.formatCurrency(proj.nextMonthEstimate)}</span>
+                            <span class="analytics-desc">Rata-rata/bulan: ${DataStore.formatCurrency(proj.averageMonthlyProfit)}<br>(${proj.dataPoints} bulan data)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h3>Ranking Produk</h3>
+                <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Produk</th>
+                            <th>Qty</th>
+                            <th>Penjualan</th>
+                            <th>Biaya</th>
+                            <th>Laba</th>
+                            <th>Rata-rata/Tx</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${topProductRows || '<tr><td colspan="7" style="text-align:center">Belum ada data</td></tr>'}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h3>Ringkasan per Produk</h3>
+                <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Produk</th>
+                            <th>Jumlah Qty</th>
+                            <th>Total Penjualan</th>
+                            <th>Laba</th>
+                            <th>Margin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${productRows}
+                        <tr class="total-row">
+                            <td>TOTAL</td>
+                            <td></td>
+                            <td>${DataStore.formatCurrency(report.totalIncome)}</td>
+                            <td>${DataStore.formatCurrency(report.profit)}</td>
+                            <td>${report.profitMargin}%</td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            ${report.expenses.length > 0 ? `
+            <div class="report-section">
+                <h3>Detail Belanja Bahan</h3>
+                <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Nama Bahan</th>
+                            <th>Qty</th>
+                            <th>Harga Satuan</th>
+                            <th>Total</th>
+                            <th>Link Transaksi</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${expenseRows}
+                        <tr class="total-row">
+                            <td colspan="4">TOTAL BELANJA BAHAN</td>
+                            <td>${DataStore.formatCurrency(report.bahanExpense)}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            ` : ''}
+
+            <div class="report-section">
+                <h3>Detail Transaksi</h3>
+                <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Kota - Produk</th>
+                            <th>Ply</th>
+                            <th>Qty</th>
+                            <th>No Form</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${transactionRows || '<tr><td colspan="7" style="text-align:center">Belum ada transaksi</td></tr>'}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h3>Status Pembayaran</h3>
+                <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Jumlah</th>
+                            <th>Total Nominal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="transaction-status status-lunas">Lunas (Transaksi)</span></td>
+                            <td>${report.paid.length}</td>
+                            <td>${DataStore.formatCurrency(report.paidAmount)}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="transaction-status status-belum">Belum Bayar (Transaksi)</span></td>
+                            <td>${report.unpaid.length}</td>
+                            <td>${DataStore.formatCurrency(report.unpaidAmount)}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="transaction-status status-lunas">Lunas (Belanja Bahan)</span></td>
+                            <td>${report.expensesPaid.length}</td>
+                            <td>${DataStore.formatCurrency(report.expensesPaidAmount)}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="transaction-status status-belum">Belum Bayar (Belanja Bahan)</span></td>
+                            <td>${report.expensesUnpaid.length}</td>
+                            <td>${DataStore.formatCurrency(report.expensesUnpaidAmount)}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="transaction-status status-titip">Titip Dana (Belanja Bahan)</span></td>
+                            <td>${report.expensesTitip.length}</td>
+                            <td>${DataStore.formatCurrency(report.expensesTitipAmount)}
+                                <br><small>Sisa: ${DataStore.formatCurrency(report.expensesTitipRemaining)}</small>
+                            </td>
+                        </tr>
+                        <tr class="total-row">
+                            <td>TOTAL</td>
+                            <td>${report.transactions.length + report.expenses.length}</td>
+                            <td>${DataStore.formatCurrency(report.totalIncome + report.totalExpense)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            <div class="report-section" style="text-align: right;">
+                <button class="btn btn-primary" onclick="App.printReport()">🖨️ Cetak Laporan</button>
+            </div>
+        `;
+
+        Animations.fadeIn(container);
+        } catch (err) {
+            console.error('generateReport error:', err);
+            this.showToast('Gagal generate laporan: ' + err.message, 'error');
+        }
+    },
+
+    printReport() {
+        window.print();
+    },
+
+    // =====================
+    // QUICK ACTIONS
+    // =====================
+
+    async quickPayTransaction(id) {
+        try {
+            const tx = await DataStore.getTransaction(id);
+            if (!tx) throw new Error('Transaksi tidak ditemukan');
+            tx.paymentStatus = 'lunas';
+            await DataStore.updateTransaction(id, tx);
+            this.showToast('Transaksi ditandai sebagai lunas', 'success');
+            await this.loadPageData(this.currentPage);
+        } catch (err) {
+            console.error('quickPayTransaction error:', err);
+            this.showToast('Gagal update pembayaran: ' + err.message, 'error');
+        }
+    },
+
+    async quickPayExpense(id) {
+        try {
+            const exp = await DataStore.getExpense(id);
+            if (!exp) throw new Error('Belanja bahan tidak ditemukan');
+            exp.paymentStatus = 'lunas';
+            await DataStore.updateExpense(id, exp);
+            this.showToast('Belanja bahan ditandai sebagai lunas', 'success');
+            await this.loadPageData(this.currentPage);
+        } catch (err) {
+            console.error('quickPayExpense error:', err);
+            this.showToast('Gagal update pembayaran: ' + err.message, 'error');
+        }
+    },
+
+    // =====================
+    // DATA BACKUP/RESTORE
+    // =====================
+
+    async exportData() {
+        const data = {
+            version: '3.0',
+            exportDate: new Date().toISOString(),
+            transactions: await DataStore.getTransactions(),
+            products: await DataStore.getProducts(),
+            expenses: await DataStore.getExpenses(),
+            cashflow: await DataStore.getCashflow()
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `media112-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        this.showToast('Data berhasil di-export', 'success');
+    },
+
+    async importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+
+                if (!data.transactions || !data.products) {
+                    this.showToast('Format file tidak valid', 'error');
+                    return;
+                }
+
+                if (confirm(`Import data dari ${data.exportDate ? new Date(data.exportDate).toLocaleDateString('id-ID') : 'backup'}?\n\nTransaksi: ${data.transactions.length}\nProduk: ${data.products.length}\nPengeluaran: ${(data.expenses || []).length}\nKas: ${(data.cashflow || []).length}\n\nData lama akan diganti.`)) {
+                    // Import cities and products
+                    for (const city of data.products) {
+                        const existing = await DataStore.getCity(city.id).catch(() => null);
+                        if (existing) {
+                            await DataStore.updateCity(city.id, city);
+                        } else {
+                            await DataStore.addCity(city);
+                        }
+                    }
+
+                    // Import transactions
+                    for (const tx of data.transactions) {
+                        const existing = await DataStore.getTransaction(tx.id).catch(() => null);
+                        if (existing) {
+                            await DataStore.updateTransaction(tx.id, tx);
+                        } else {
+                            await DataStore.addTransaction(tx);
+                        }
+                    }
+
+                    // Import expenses
+                    for (const exp of (data.expenses || [])) {
+                        const existing = await DataStore.getExpense(exp.id).catch(() => null);
+                        if (existing) {
+                            await DataStore.updateExpense(exp.id, exp);
+                        } else {
+                            await DataStore.addExpense(exp);
+                        }
+                    }
+
+                    // Import cashflow
+                    for (const cf of (data.cashflow || [])) {
+                        const existing = await DataStore.getCashflowItem(cf.id).catch(() => null);
+                        if (existing) {
+                            await DataStore.updateCashflow(cf.id, cf);
+                        } else {
+                            await DataStore.addCashflow(cf);
+                        }
+                    }
+
+                    await this.loadPageData(this.currentPage);
+                    this.showToast(`Data berhasil di-import: ${data.transactions.length} transaksi, ${data.products.length} produk`, 'success');
+                }
+            } catch (err) {
+                this.showToast('Gagal membaca file: ' + err.message, 'error');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    },
+
+    // =====================
+    // TOAST NOTIFICATIONS
+    // =====================
+
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+
+        const icons = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+
+        toast.innerHTML = `<span>${icons[type] || icons.info}</span> ${message}`;
+        container.appendChild(toast);
+
+        // Animate toast in
+        Animations.toastIn(toast);
+
+        // Animate toast out after 3 seconds
+        setTimeout(() => {
+            Animations.toastOut(toast, () => toast.remove());
+        }, 3000);
+    }
+};
+
+// Initialize app when DOM is ready
+document.addEventListener('DOMContentLoaded', () => App.init());

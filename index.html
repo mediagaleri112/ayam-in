@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>media.112 - Pencatatan Cetak</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co https://*.googleapis.com https://*.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co;">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="description" content="media.112 - Aplikasi pencatatan pendapatan dan pengeluaran transaksi jasa cetak">
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="media.112">
+    <link rel="apple-touch-icon" href="img/icon.svg">
+    <!-- Fallback icon -->
+    <link rel="icon" type="image/svg+xml" href="img/icon.svg">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">🖨️</span>
+                <span class="logo-text">media.112</span>
+            </div>
+            <button class="sidebar-close" id="sidebarClose">✕</button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-page="transactions">
+                <span class="nav-icon">📝</span>
+                <span>Transaksi</span>
+            </a>
+            <a href="#" class="nav-item" data-page="products">
+                <span class="nav-icon">📦</span>
+                <span>Produk</span>
+            </a>
+            <a href="#" class="nav-item" data-page="expenses">
+                <span class="nav-icon">🧾</span>
+                <span>Belanja Bahan</span>
+            </a>
+            <a href="#" class="nav-item" data-page="cashflow">
+                <span class="nav-icon">💵</span>
+                <span>Kas</span>
+            </a>
+            <a href="#" class="nav-item" data-page="reports">
+                <span class="nav-icon">📈</span>
+                <span>Laporan</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-actions">
+                <button class="btn btn-secondary btn-sm btn-block" onclick="App.exportData()">💾 Export Data</button>
+                <button class="btn btn-secondary btn-sm btn-block" onclick="document.getElementById('importFile').click()">📂 Import Data</button>
+                <input type="file" id="importFile" accept=".json" style="display:none" onchange="App.importData(event)">
+            </div>
+            <div class="version">v5.1.0</div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <button class="menu-toggle" id="menuToggle">☰</button>
+            <h1 class="page-title" id="pageTitle">Dashboard</h1>
+            <div class="header-actions">
+                <button class="theme-toggle" id="themeToggle" title="Ganti tema">🌙</button>
+                <button class="btn btn-primary btn-add" id="quickAdd">+ Transaksi</button>
+            </div>
+        </header>
+
+        <!-- Pages Container -->
+        <div class="pages-container" id="pagesContainer">
+            
+            <!-- Dashboard Page -->
+            <section class="page active" id="page-dashboard">
+                <div class="stats-grid">
+                    <div class="stat-card stat-income">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Pendapatan</span>
+                            <span class="stat-value" id="statIncome">Rp 0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-expense">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Pengeluaran Bahan</span>
+                            <span class="stat-value" id="statExpense">Rp 0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-profit">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Laba Bersih</span>
+                            <span class="stat-value" id="statProfit">Rp 0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-count">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Transaksi</span>
+                            <span class="stat-value" id="statCount">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="card recent-transactions">
+                        <div class="card-header">
+                            <h3>Transaksi Terbaru</h3>
+                            <a href="#" class="link" data-page="transactions">Lihat Semua</a>
+                        </div>
+                        <div class="card-body" id="recentTransactions">
+                            <div class="empty-state">
+                                <span class="empty-icon">📝</span>
+                                <p>Belum ada transaksi</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-right-col">
+                        <div class="card recent-expenses">
+                            <div class="card-header">
+                                <h3>Belanja Bahan Terbaru</h3>
+                                <a href="#" class="link" data-page="expenses">Lihat Semua</a>
+                            </div>
+                            <div class="card-body" id="recentExpenses">
+                                <div class="empty-state">
+                                    <span class="empty-icon">🧾</span>
+                                    <p>Belum ada belanja</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card quick-stats">
+                            <div class="card-header">
+                                <h3>Status Pembayaran</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="payment-stats">
+                                    <div class="payment-stat paid">
+                                        <span class="payment-label">Lunas</span>
+                                        <span class="payment-count" id="statPaid">0</span>
+                                    </div>
+                                    <div class="payment-stat unpaid">
+                                        <span class="payment-label">Belum Bayar</span>
+                                        <span class="payment-count" id="statUnpaid">0</span>
+                                    </div>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="paymentProgress"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transactions Page -->
+            <section class="page" id="page-transactions">
+                <div class="page-header">
+                    <div class="page-header-row">
+                        <div class="search-filter">
+                            <input type="text" class="search-input" id="searchTransaction" placeholder="🔍 Cari transaksi...">
+                            <select class="filter-select" id="filterStatus">
+                                <option value="">Semua Status</option>
+                                <option value="lunas">Lunas</option>
+                                <option value="belum">Belum Bayar</option>
+                            </select>
+                            <input type="month" class="filter-date" id="filterDate">
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openModal()">+ Transaksi</button>
+                    </div>
+                </div>
+                <div class="transactions-list" id="transactionsList">
+                    <div class="empty-state">
+                        <span class="empty-icon">📝</span>
+                        <p>Belum ada transaksi</p>
+                        <button class="btn btn-primary" onclick="App.openModal()">+ Tambah Transaksi</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Products/Kota Page -->
+            <section class="page" id="page-products">
+                <div class="page-header">
+                    <div class="page-header-row">
+                        <div class="search-filter">
+                            <input type="text" class="search-search" id="searchCity" placeholder="🔍 Cari kota...">
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openProductModal()">+ Tambah Kota</button>
+                    </div>
+                </div>
+                <div class="products-grid" id="productsList">
+                    <div class="empty-state">
+                        <span class="empty-icon">🏙️</span>
+                        <p>Belum ada kota</p>
+                        <button class="btn btn-primary" onclick="App.openProductModal()">+ Tambah Kota</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Expenses Page (Belanja Bahan) -->
+            <section class="page" id="page-expenses">
+                <div class="page-header">
+                    <div class="page-header-row">
+                        <div class="search-filter">
+                            <input type="text" class="search-input" id="searchExpense" placeholder="🔍 Cari bahan...">
+                        <select class="filter-select" id="filterExpenseStatus">
+                            <option value="">Semua Status</option>
+                            <option value="lunas">Lunas</option>
+                            <option value="belum">Belum Bayar</option>
+                            <option value="titip">Titip Dana</option>
+                        </select>
+                            <input type="month" class="filter-date" id="filterExpenseDate">
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openExpenseModal()">+ Tambah Belanja</button>
+                    </div>
+                </div>
+
+                <div class="expense-summary-cards" id="expenseSummaryCards">
+                    <div class="expense-summary-card total">
+                        <span class="expense-summary-label">Total Pengeluaran Bahan</span>
+                        <span class="expense-summary-value" id="expenseTotalAll">Rp 0</span>
+                    </div>
+                    <div class="expense-summary-card paid">
+                        <span class="expense-summary-label">Sudah Dibayar</span>
+                        <span class="expense-summary-value" id="expenseTotalPaid">Rp 0</span>
+                    </div>
+                    <div class="expense-summary-card unpaid">
+                        <span class="expense-summary-label">Belum Dibayar</span>
+                        <span class="expense-summary-value" id="expenseTotalUnpaid">Rp 0</span>
+                    </div>
+                    <div class="expense-summary-card titip">
+                        <span class="expense-summary-label">Titip Dana</span>
+                        <span class="expense-summary-value" id="expenseTotalTitip">Rp 0</span>
+                    </div>
+                </div>
+
+                <div class="transactions-list" id="expensesList">
+                    <div class="empty-state">
+                        <span class="empty-icon">🧾</span>
+                        <p>Belum ada catatan belanja bahan</p>
+                        <button class="btn btn-primary" onclick="App.openExpenseModal()">+ Tambah Belanja</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Cash Flow Page -->
+            <section class="page" id="page-cashflow">
+                <div class="cashflow-balance-card">
+                    <div class="balance-main">
+                        <span class="balance-label">Saldo Kas Saat Ini</span>
+                        <span class="balance-value" id="cashBalance">Rp 0</span>
+                    </div>
+                    <div class="balance-actions">
+                        <button class="btn btn-success" onclick="App.openCashModal('in')">💰 Setor Kas</button>
+                        <button class="btn btn-danger" onclick="App.openCashModal('out')">💸 Tarik Kas</button>
+                        <button class="btn btn-secondary" onclick="App.openCashModal('adjust')">⚙️ Adjust Saldo</button>
+                    </div>
+                </div>
+
+                <div class="cashflow-summary-cards">
+                    <div class="cashflow-card inflow">
+                        <span class="cashflow-label">Total Pemasukan</span>
+                        <span class="cashflow-value" id="cashTotalIn">Rp 0</span>
+                    </div>
+                    <div class="cashflow-card outflow">
+                        <span class="cashflow-label">Total Pengeluaran</span>
+                        <span class="cashflow-value" id="cashTotalOut">Rp 0</span>
+                    </div>
+                    <div class="cashflow-card net">
+                        <span class="cashflow-label">Arus Bersih</span>
+                        <span class="cashflow-value" id="cashNet">Rp 0</span>
+                    </div>
+                </div>
+
+                <div class="page-header">
+                    <div class="page-header-row">
+                        <div class="search-filter">
+                            <input type="text" class="search-input" id="searchCashflow" placeholder="🔍 Cari transaksi kas...">
+                            <select class="filter-select" id="filterCashType">
+                                <option value="">Semua Tipe</option>
+                                <option value="in">Pemasukan</option>
+                                <option value="out">Pengeluaran</option>
+                                <option value="adjust">Adjustment</option>
+                            </select>
+                            <input type="month" class="filter-date" id="filterCashDate">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="transactions-list" id="cashflowList">
+                    <div class="empty-state">
+                        <span class="empty-icon">💵</span>
+                        <p>Belum ada transaksi kas</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports Page -->
+            <section class="page" id="page-reports">
+                <div class="report-controls">
+                    <div class="report-filter">
+                        <label>Periode:</label>
+                        <button class="btn btn-secondary btn-sm" onclick="App.setReportToday()">Hari Ini</button>
+                        <button class="btn btn-secondary btn-sm" onclick="App.setReportThisMonth()">Bulan Ini</button>
+                        <button class="btn btn-secondary btn-sm" onclick="App.setReportLastMonth()">Bulan Lalu</button>
+                        <input type="date" class="filter-date" id="reportStartDate">
+                        <span>s/d</span>
+                        <input type="date" class="filter-date" id="reportEndDate">
+                        <button class="btn btn-primary" onclick="App.generateReport()">Generate Laporan</button>
+                    </div>
+                </div>
+                <div class="report-content" id="reportContent">
+                    <div class="empty-state">
+                        <span class="empty-icon">📈</span>
+                        <p>Pilih periode lalu klik Generate</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Transaction Modal -->
+    <div class="modal-overlay" id="transactionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Tambah Transaksi</h2>
+                <button class="modal-close" onclick="App.closeModal()">✕</button>
+            </div>
+            <form id="transactionForm" class="modal-body">
+                <input type="hidden" id="transactionId">
+
+                <div class="form-group">
+                    <label for="selectCity">Pilih Kota *</label>
+                    <select id="selectCity" class="form-input" required>
+                        <option value="">- Pilih Kota -</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="selectProduct">Pilih Produk *</label>
+                    <select id="selectProduct" class="form-input" required disabled>
+                        <option value="">- Pilih kota terlebih dahulu -</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productInitial">Inisial (4 Karakter)</label>
+                        <input type="text" id="productInitial" class="form-input" maxlength="4" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="numberForm">Nomor Form (10 Digit)</label>
+                        <input type="text" id="numberForm" class="form-input" maxlength="10" placeholder="1234567890" inputmode="numeric" pattern="[0-9]*">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productSize">Ukuran</label>
+                        <input type="text" id="productSize" class="form-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="productPly">Jumlah Ply</label>
+                        <select id="productPly" class="form-input">
+                            <option value="1">1 Ply</option>
+                            <option value="2">2 Ply</option>
+                            <option value="3">3 Ply</option>
+                            <option value="4" selected>4 Ply</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productPrice">Harga per Judul (Rp) *</label>
+                        <input type="number" id="productPrice" class="form-input" placeholder="0" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="productQuantity">Jumlah *</label>
+                        <input type="number" id="productQuantity" class="form-input" placeholder="0" min="1" value="1" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="totalPrice">Total Harga Jual</label>
+                    <input type="text" id="totalPrice" class="form-input" readonly>
+                </div>
+
+                <div class="form-divider">
+                    <span>Status Pembayaran</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Status Pembayaran *</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="paymentStatus" value="lunas" checked>
+                            <span class="radio-custom"></span>
+                            Lunas
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="paymentStatus" value="belum">
+                            <span class="radio-custom"></span>
+                            Belum Bayar
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="transactionDate">Tanggal Transaksi</label>
+                    <input type="date" id="transactionDate" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="transactionNote">Catatan</label>
+                    <textarea id="transactionNote" class="form-input" rows="2" placeholder="Opsional..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Transaksi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- City Modal -->
+    <div class="modal-overlay" id="productModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 id="productModalTitle">Tambah Kota</h2>
+                <button class="modal-close" onclick="App.closeProductModal()">✕</button>
+            </div>
+            <form id="productForm" class="modal-body">
+                <input type="hidden" id="editProductId">
+
+                <div class="form-group">
+                    <label for="editProductName">Nama Kota *</label>
+                    <input type="text" id="editProductName" class="form-input" placeholder="Contoh: JAKARTA" required style="text-transform: uppercase;">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editProductInitial">Inisial (4 Karakter) *</label>
+                        <input type="text" id="editProductInitial" class="form-input" maxlength="4" placeholder="JKT" required style="text-transform: uppercase;">
+                    </div>
+                    <div class="form-group">
+                        <label for="editNumberForm">Nomor Form (10 Digit)</label>
+                        <input type="text" id="editNumberForm" class="form-input" maxlength="10" placeholder="1234567890" inputmode="numeric" pattern="[0-9]*">
+                    </div>
+                </div>
+
+                <div class="form-divider">
+                    <span>Produk Default Kota Ini</span>
+                </div>
+
+                <div id="cityProductsList" class="city-products-list">
+                    <!-- Products will be rendered here -->
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="App.closeProductModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Kota</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal (Belanja Bahan) -->
+    <div class="modal-overlay" id="expenseModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="expenseModalTitle">Tambah Belanja Bahan</h2>
+                <button class="modal-close" onclick="App.closeExpenseModal()">✕</button>
+            </div>
+            <form id="expenseForm" class="modal-body">
+                <input type="hidden" id="expenseId">
+
+                <div class="form-group">
+                    <label for="expenseName">Nama Bahan *</label>
+                    <input type="text" id="expenseName" class="form-input" placeholder="Contoh: Kertas HVS A4" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="expenseQuantity">Jumlah Kebutuhan *</label>
+                        <input type="number" id="expenseQuantity" class="form-input" placeholder="0" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expenseUnitPrice">Harga Satuan (Rp) *</label>
+                        <input type="number" id="expenseUnitPrice" class="form-input" placeholder="0" min="0" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="expenseTotalCost">Total Biaya</label>
+                    <input type="text" id="expenseTotalCost" class="form-input" readonly>
+                </div>
+
+                <div class="form-divider">
+                    <span>Status & Detail</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Status Pembayaran *</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="expensePaymentStatus" value="lunas" checked>
+                            <span class="radio-custom"></span>
+                            Lunas
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="expensePaymentStatus" value="belum">
+                            <span class="radio-custom"></span>
+                            Belum Bayar
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="expensePaymentStatus" value="titip">
+                            <span class="radio-custom"></span>
+                            Titip Dana
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group titip-dana-field" id="titipDanaField" style="display:none">
+                    <label for="expenseTitipAmount">Nominal Titip Dana (Rp) *</label>
+                    <input type="number" id="expenseTitipAmount" class="form-input" placeholder="0" min="0">
+                    <small class="form-help">Sisa yang perlu dibayar: <span id="expenseRemaining">Rp 0</span></small>
+                </div>
+
+                <div class="form-group">
+                    <label for="expenseDate">Tanggal Belanja</label>
+                    <input type="date" id="expenseDate" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="expenseLinkedTransaction">Link ke Transaksi (Opsional)</label>
+                    <select id="expenseLinkedTransaction" class="form-input">
+                        <option value="">- Tidak di-link -</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="expenseNote">Catatan</label>
+                    <textarea id="expenseNote" class="form-input" rows="2" placeholder="Opsional..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="App.closeExpenseModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Belanja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cash Flow Modal -->
+    <div class="modal-overlay" id="cashModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 id="cashModalTitle">Setor Kas</h2>
+                <button class="modal-close" onclick="App.closeCashModal()">✕</button>
+            </div>
+            <form id="cashForm" class="modal-body">
+                <input type="hidden" id="cashId">
+                <input type="hidden" id="cashType">
+
+                <div class="form-group">
+                    <label for="cashAmount">Nominal (Rp) *</label>
+                    <input type="number" id="cashAmount" class="form-input" placeholder="0" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="cashDescription">Keterangan *</label>
+                    <input type="text" id="cashDescription" class="form-input" placeholder="Contoh: Setoran modal awal" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="cashCategory">Kategori</label>
+                    <select id="cashCategory" class="form-input">
+                        <option value="modal">Modal Usaha</option>
+                        <option value="operasional">Operasional</option>
+                        <option value="lainnya">Lainnya</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="cashDate">Tanggal</label>
+                    <input type="date" id="cashDate" class="form-input">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="App.closeCashModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="cashSubmitBtn">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2>Konfirmasi Hapus</h2>
+                <button class="modal-close" onclick="App.closeDeleteModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="delete-message">Yakin ingin menghapus item ini?</p>
+                <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="App.closeDeleteModal()">Batal</button>
+                    <button class="btn btn-danger" id="confirmDelete">Hapus</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- CDN Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+    <!-- App Scripts -->
+    <script src="js/supabase.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/animations.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // Clear old caches and register new Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                // Unregister old service workers
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of registrations) {
+                    await reg.unregister();
+                }
+
+                // Clear all old caches
+                const cacheNames = await caches.keys();
+                for (const name of cacheNames) {
+                    await caches.delete(name);
+                }
+
+                // Register fresh service worker
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW registered:', reg.scope))
+                    .catch(err => console.log('SW error:', err));
+            });
+        }
+    </script>
+</body>
+</html>

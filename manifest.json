@@ -1,0 +1,22 @@
+{
+    "name": "media.112 - Pencatatan Cetak",
+    "short_name": "media.112",
+    "description": "media.112 - Aplikasi pencatatan pendapatan dan pengeluaran transaksi jasa cetak",
+    "start_url": "./index.html",
+    "scope": "./",
+    "display": "standalone",
+    "background_color": "#f8fafc",
+    "theme_color": "#6366f1",
+    "orientation": "portrait-primary",
+    "categories": ["business", "productivity"],
+    "lang": "id",
+    "dir": "ltr",
+    "icons": [
+        {
+            "src": "img/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ]
+}
