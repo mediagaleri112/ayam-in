@@ -21,6 +21,29 @@
     <link rel="icon" type="image/svg+xml" href="img/icon.svg">
 </head>
 <body>
+    <!-- Auth Container (Login Page) -->
+    <div id="authContainer" class="auth-container" style="display:none">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <span class="logo-icon">🖨️</span>
+                <h1 class="logo-text">media.112</h1>
+                <p class="auth-subtitle">Pencatatan Jasa Cetak</p>
+            </div>
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" class="form-input" placeholder="admin@mediagaleri112.com" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" class="form-input" placeholder="Masukkan password" required autocomplete="current-password">
+                </div>
+                <div id="loginError" class="auth-error" style="display:none"></div>
+                <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Masuk</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -61,8 +84,9 @@
                 <button class="btn btn-secondary btn-sm btn-block" data-action="export">💾 Export Data</button>
                 <button class="btn btn-secondary btn-sm btn-block" data-action="import-trigger">📂 Import Data</button>
                 <input type="file" id="importFile" accept=".json" style="display:none" data-action="import">
+                <button class="btn btn-danger btn-sm btn-block" data-action="logout">🚪 Logout</button>
             </div>
-            <div class="version">v5.2.0</div>
+            <div class="version">v5.3.0</div>
         </div>
     </aside>
 
@@ -110,6 +134,13 @@
                         <div class="stat-info">
                             <span class="stat-label">Total Transaksi</span>
                             <span class="stat-value" id="statCount">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-balance">
+                        <div class="stat-icon">💵</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Saldo Kas</span>
+                            <span class="stat-value" id="statBalance">Rp 0</span>
                         </div>
                     </div>
                 </div>

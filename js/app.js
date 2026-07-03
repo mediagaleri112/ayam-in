@@ -19,19 +19,89 @@ const App = {
     editingProductId: null,
     editingExpenseId: null,
     deleteCallback: null,
+    currentUser: null,
 
     // Initialize app
     async init() {
         try {
             this.initTheme();
             this.bindEvents();
+
+            // Listen for auth state changes (token refresh, logout from other tab)
+            db.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_OUT') {
+                    this.currentUser = null;
+                    this.showLogin();
+                } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                    if (session) this.currentUser = session.user;
+                }
+            });
+
+            // Check auth session
+            const { data: { session } } = await db.auth.getSession();
+
+            if (session) {
+                this.currentUser = session.user;
+                await DataStore.init();
+                await this.loadDashboard();
+                this.setTodayDate();
+                this.showApp();
+            } else {
+                this.showLogin();
+            }
+        } catch (err) {
+            console.error('App init error:', err);
+            this.showLogin();
+        }
+    },
+
+    // =====================
+    // AUTH
+    // =====================
+
+    showLogin() {
+        document.getElementById('authContainer').style.display = 'flex';
+        document.querySelector('.sidebar').style.display = 'none';
+        document.querySelector('.main-content').style.display = 'none';
+    },
+
+    showApp() {
+        document.getElementById('authContainer').style.display = 'none';
+        document.querySelector('.sidebar').style.display = '';
+        document.querySelector('.main-content').style.display = '';
+    },
+
+    async handleLogin(email, password) {
+        const loginBtn = document.getElementById('loginBtn');
+        const errorEl = document.getElementById('loginError');
+
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Masuk...';
+        errorEl.style.display = 'none';
+
+        try {
+            const { data, error } = await db.auth.signInWithPassword({ email, password });
+
+            if (error) throw error;
+
+            this.currentUser = data.user;
             await DataStore.init();
             await this.loadDashboard();
             this.setTodayDate();
+            this.showApp();
         } catch (err) {
-            console.error('App init error:', err);
-            this.showToast('Gagal memuat aplikasi: ' + err.message, 'error');
+            errorEl.textContent = err.message || 'Email atau password salah';
+            errorEl.style.display = 'block';
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Masuk';
         }
+    },
+
+    async handleLogout() {
+        await db.auth.signOut();
+        this.currentUser = null;
+        this.showLogin();
     },
 
     // =====================
@@ -191,7 +261,16 @@ const App = {
                 case 'close-expense-modal': this.closeExpenseModal(); break;
                 case 'close-cash-modal': this.closeCashModal(); break;
                 case 'close-delete-modal': this.closeDeleteModal(); break;
+                case 'logout': this.handleLogout(); break;
             }
+        });
+
+        // Login form submit
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            this.handleLogin(email, password);
         });
 
         // Import file change
@@ -296,7 +375,10 @@ const App = {
 
     async loadDashboard() {
         try {
-            const stats = await DataStore.getStats();
+            const [stats, balance] = await Promise.all([
+                DataStore.getStats(),
+                DataStore.getCurrentBalance()
+            ]);
 
             document.getElementById('statIncome').textContent = DataStore.formatCurrency(stats.totalIncome);
             document.getElementById('statExpense').textContent = DataStore.formatCurrency(stats.totalExpense);
@@ -304,6 +386,10 @@ const App = {
             document.getElementById('statCount').textContent = stats.totalTransactions;
             document.getElementById('statPaid').textContent = stats.paid;
             document.getElementById('statUnpaid').textContent = stats.unpaid;
+
+            const balanceEl = document.getElementById('statBalance');
+            balanceEl.textContent = DataStore.formatCurrency(balance);
+            balanceEl.closest('.stat-card').classList.toggle('stat-negative', balance < 0);
 
             // Animated progress bar
             Animations.progressBar(document.getElementById('paymentProgress'), stats.paymentProgress);
@@ -316,6 +402,7 @@ const App = {
             Animations.countUp(document.getElementById('statExpense'), stats.totalExpense);
             Animations.countUp(document.getElementById('statProfit'), stats.profit);
             Animations.countUpNumber(document.getElementById('statCount'), stats.totalTransactions);
+            Animations.countUp(document.getElementById('statBalance'), balance);
 
             await this.loadRecentTransactions();
             await this.loadRecentExpenses();
