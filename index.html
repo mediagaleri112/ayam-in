@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>media.112 - Pencatatan Cetak</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co https://*.googleapis.com https://*.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co https://*.googleapis.com https://*.gstatic.com; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2 https://cdn.jsdelivr.net/npm/animejs@3.2.2; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -58,11 +58,11 @@
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-actions">
-                <button class="btn btn-secondary btn-sm btn-block" onclick="App.exportData()">💾 Export Data</button>
-                <button class="btn btn-secondary btn-sm btn-block" onclick="document.getElementById('importFile').click()">📂 Import Data</button>
-                <input type="file" id="importFile" accept=".json" style="display:none" onchange="App.importData(event)">
+                <button class="btn btn-secondary btn-sm btn-block" data-action="export">💾 Export Data</button>
+                <button class="btn btn-secondary btn-sm btn-block" data-action="import-trigger">📂 Import Data</button>
+                <input type="file" id="importFile" accept=".json" style="display:none" data-action="import">
             </div>
-            <div class="version">v5.1.0</div>
+            <div class="version">v5.2.0</div>
         </div>
     </aside>
 
@@ -179,14 +179,14 @@
                             </select>
                             <input type="month" class="filter-date" id="filterDate">
                         </div>
-                        <button class="btn btn-primary" onclick="App.openModal()">+ Transaksi</button>
+                        <button class="btn btn-primary" data-action="open-modal">+ Transaksi</button>
                     </div>
                 </div>
                 <div class="transactions-list" id="transactionsList">
                     <div class="empty-state">
                         <span class="empty-icon">📝</span>
                         <p>Belum ada transaksi</p>
-                        <button class="btn btn-primary" onclick="App.openModal()">+ Tambah Transaksi</button>
+                        <button class="btn btn-primary" data-action="open-modal">+ Tambah Transaksi</button>
                     </div>
                 </div>
             </section>
@@ -198,14 +198,14 @@
                         <div class="search-filter">
                             <input type="text" class="search-search" id="searchCity" placeholder="🔍 Cari kota...">
                         </div>
-                        <button class="btn btn-primary" onclick="App.openProductModal()">+ Tambah Kota</button>
+                        <button class="btn btn-primary" data-action="open-product-modal">+ Tambah Kota</button>
                     </div>
                 </div>
                 <div class="products-grid" id="productsList">
                     <div class="empty-state">
                         <span class="empty-icon">🏙️</span>
                         <p>Belum ada kota</p>
-                        <button class="btn btn-primary" onclick="App.openProductModal()">+ Tambah Kota</button>
+                        <button class="btn btn-primary" data-action="open-product-modal">+ Tambah Kota</button>
                     </div>
                 </div>
             </section>
@@ -224,7 +224,7 @@
                         </select>
                             <input type="month" class="filter-date" id="filterExpenseDate">
                         </div>
-                        <button class="btn btn-primary" onclick="App.openExpenseModal()">+ Tambah Belanja</button>
+                        <button class="btn btn-primary" data-action="open-expense-modal">+ Tambah Belanja</button>
                     </div>
                 </div>
 
@@ -251,7 +251,7 @@
                     <div class="empty-state">
                         <span class="empty-icon">🧾</span>
                         <p>Belum ada catatan belanja bahan</p>
-                        <button class="btn btn-primary" onclick="App.openExpenseModal()">+ Tambah Belanja</button>
+                        <button class="btn btn-primary" data-action="open-expense-modal">+ Tambah Belanja</button>
                     </div>
                 </div>
             </section>
@@ -264,9 +264,9 @@
                         <span class="balance-value" id="cashBalance">Rp 0</span>
                     </div>
                     <div class="balance-actions">
-                        <button class="btn btn-success" onclick="App.openCashModal('in')">💰 Setor Kas</button>
-                        <button class="btn btn-danger" onclick="App.openCashModal('out')">💸 Tarik Kas</button>
-                        <button class="btn btn-secondary" onclick="App.openCashModal('adjust')">⚙️ Adjust Saldo</button>
+                        <button class="btn btn-success" data-action="cash-in">💰 Setor Kas</button>
+                        <button class="btn btn-danger" data-action="cash-out">💸 Tarik Kas</button>
+                        <button class="btn btn-secondary" data-action="cash-adjust">⚙️ Adjust Saldo</button>
                     </div>
                 </div>
 
@@ -313,13 +313,13 @@
                 <div class="report-controls">
                     <div class="report-filter">
                         <label>Periode:</label>
-                        <button class="btn btn-secondary btn-sm" onclick="App.setReportToday()">Hari Ini</button>
-                        <button class="btn btn-secondary btn-sm" onclick="App.setReportThisMonth()">Bulan Ini</button>
-                        <button class="btn btn-secondary btn-sm" onclick="App.setReportLastMonth()">Bulan Lalu</button>
+                        <button class="btn btn-secondary btn-sm" data-action="report-today">Hari Ini</button>
+                        <button class="btn btn-secondary btn-sm" data-action="report-this-month">Bulan Ini</button>
+                        <button class="btn btn-secondary btn-sm" data-action="report-last-month">Bulan Lalu</button>
                         <input type="date" class="filter-date" id="reportStartDate">
                         <span>s/d</span>
                         <input type="date" class="filter-date" id="reportEndDate">
-                        <button class="btn btn-primary" onclick="App.generateReport()">Generate Laporan</button>
+                        <button class="btn btn-primary" data-action="generate-report">Generate Laporan</button>
                     </div>
                 </div>
                 <div class="report-content" id="reportContent">
@@ -337,7 +337,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="modalTitle">Tambah Transaksi</h2>
-                <button class="modal-close" onclick="App.closeModal()">✕</button>
+                <button class="modal-close" data-action="close-modal">✕</button>
             </div>
             <form id="transactionForm" class="modal-body">
                 <input type="hidden" id="transactionId">
@@ -386,11 +386,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="productPrice">Harga per Judul (Rp) *</label>
-                        <input type="number" id="productPrice" class="form-input" placeholder="0" min="0" required>
+                        <input type="number" id="productPrice" class="form-input" placeholder="0" min="0" max="999999999" required>
                     </div>
                     <div class="form-group">
                         <label for="productQuantity">Jumlah *</label>
-                        <input type="number" id="productQuantity" class="form-input" placeholder="0" min="1" value="1" required>
+                        <input type="number" id="productQuantity" class="form-input" placeholder="0" min="1" max="99999" value="1" required>
                     </div>
                 </div>
 
@@ -426,11 +426,11 @@
 
                 <div class="form-group">
                     <label for="transactionNote">Catatan</label>
-                    <textarea id="transactionNote" class="form-input" rows="2" placeholder="Opsional..."></textarea>
+                    <textarea id="transactionNote" class="form-input" rows="2" maxlength="500" placeholder="Opsional..."></textarea>
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Batal</button>
+                    <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
                     <button type="submit" class="btn btn-primary">Simpan Transaksi</button>
                 </div>
             </form>
@@ -442,14 +442,14 @@
         <div class="modal modal-sm">
             <div class="modal-header">
                 <h2 id="productModalTitle">Tambah Kota</h2>
-                <button class="modal-close" onclick="App.closeProductModal()">✕</button>
+                <button class="modal-close" data-action="close-product-modal">✕</button>
             </div>
             <form id="productForm" class="modal-body">
                 <input type="hidden" id="editProductId">
 
                 <div class="form-group">
                     <label for="editProductName">Nama Kota *</label>
-                    <input type="text" id="editProductName" class="form-input" placeholder="Contoh: JAKARTA" required style="text-transform: uppercase;">
+                    <input type="text" id="editProductName" class="form-input" maxlength="100" placeholder="Contoh: JAKARTA" required style="text-transform: uppercase;">
                 </div>
 
                 <div class="form-row">
@@ -472,7 +472,7 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="App.closeProductModal()">Batal</button>
+                    <button type="button" class="btn btn-secondary" data-action="close-product-modal">Batal</button>
                     <button type="submit" class="btn btn-primary">Simpan Kota</button>
                 </div>
             </form>
@@ -484,24 +484,24 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="expenseModalTitle">Tambah Belanja Bahan</h2>
-                <button class="modal-close" onclick="App.closeExpenseModal()">✕</button>
+                <button class="modal-close" data-action="close-expense-modal">✕</button>
             </div>
             <form id="expenseForm" class="modal-body">
                 <input type="hidden" id="expenseId">
 
                 <div class="form-group">
                     <label for="expenseName">Nama Bahan *</label>
-                    <input type="text" id="expenseName" class="form-input" placeholder="Contoh: Kertas HVS A4" required>
+                    <input type="text" id="expenseName" class="form-input" maxlength="200" placeholder="Contoh: Kertas HVS A4" required>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label for="expenseQuantity">Jumlah Kebutuhan *</label>
-                        <input type="number" id="expenseQuantity" class="form-input" placeholder="0" min="1" value="1" required>
+                        <input type="number" id="expenseQuantity" class="form-input" placeholder="0" min="1" max="99999" value="1" required>
                     </div>
                     <div class="form-group">
                         <label for="expenseUnitPrice">Harga Satuan (Rp) *</label>
-                        <input type="number" id="expenseUnitPrice" class="form-input" placeholder="0" min="0" required>
+                        <input type="number" id="expenseUnitPrice" class="form-input" placeholder="0" min="0" max="999999999" required>
                     </div>
                 </div>
 
@@ -537,7 +537,7 @@
 
                 <div class="form-group titip-dana-field" id="titipDanaField" style="display:none">
                     <label for="expenseTitipAmount">Nominal Titip Dana (Rp) *</label>
-                    <input type="number" id="expenseTitipAmount" class="form-input" placeholder="0" min="0">
+                    <input type="number" id="expenseTitipAmount" class="form-input" placeholder="0" min="0" max="999999999">
                     <small class="form-help">Sisa yang perlu dibayar: <span id="expenseRemaining">Rp 0</span></small>
                 </div>
 
@@ -555,11 +555,11 @@
 
                 <div class="form-group">
                     <label for="expenseNote">Catatan</label>
-                    <textarea id="expenseNote" class="form-input" rows="2" placeholder="Opsional..."></textarea>
+                    <textarea id="expenseNote" class="form-input" rows="2" maxlength="500" placeholder="Opsional..."></textarea>
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="App.closeExpenseModal()">Batal</button>
+                    <button type="button" class="btn btn-secondary" data-action="close-expense-modal">Batal</button>
                     <button type="submit" class="btn btn-primary">Simpan Belanja</button>
                 </div>
             </form>
@@ -571,7 +571,7 @@
         <div class="modal modal-sm">
             <div class="modal-header">
                 <h2 id="cashModalTitle">Setor Kas</h2>
-                <button class="modal-close" onclick="App.closeCashModal()">✕</button>
+                <button class="modal-close" data-action="close-cash-modal">✕</button>
             </div>
             <form id="cashForm" class="modal-body">
                 <input type="hidden" id="cashId">
@@ -579,12 +579,12 @@
 
                 <div class="form-group">
                     <label for="cashAmount">Nominal (Rp) *</label>
-                    <input type="number" id="cashAmount" class="form-input" placeholder="0" min="1" required>
+                    <input type="number" id="cashAmount" class="form-input" placeholder="0" min="1" max="999999999" required>
                 </div>
 
                 <div class="form-group">
                     <label for="cashDescription">Keterangan *</label>
-                    <input type="text" id="cashDescription" class="form-input" placeholder="Contoh: Setoran modal awal" required>
+                    <input type="text" id="cashDescription" class="form-input" maxlength="200" placeholder="Contoh: Setoran modal awal" required>
                 </div>
 
                 <div class="form-group">
@@ -602,7 +602,7 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="App.closeCashModal()">Batal</button>
+                    <button type="button" class="btn btn-secondary" data-action="close-cash-modal">Batal</button>
                     <button type="submit" class="btn btn-primary" id="cashSubmitBtn">Simpan</button>
                 </div>
             </form>
@@ -614,12 +614,12 @@
         <div class="modal modal-sm">
             <div class="modal-header">
                 <h2>Konfirmasi Hapus</h2>
-                <button class="modal-close" onclick="App.closeDeleteModal()">✕</button>
+                <button class="modal-close" data-action="close-delete-modal">✕</button>
             </div>
             <div class="modal-body">
                 <p class="delete-message">Yakin ingin menghapus item ini?</p>
                 <div class="form-actions">
-                    <button class="btn btn-secondary" onclick="App.closeDeleteModal()">Batal</button>
+                    <button class="btn btn-secondary" data-action="close-delete-modal">Batal</button>
                     <button class="btn btn-danger" id="confirmDelete">Hapus</button>
                 </div>
             </div>
@@ -637,28 +637,6 @@
     <script src="js/data.js"></script>
     <script src="js/animations.js"></script>
     <script src="js/app.js"></script>
-    <script>
-        // Clear old caches and register new Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', async () => {
-                // Unregister old service workers
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (const reg of registrations) {
-                    await reg.unregister();
-                }
-
-                // Clear all old caches
-                const cacheNames = await caches.keys();
-                for (const name of cacheNames) {
-                    await caches.delete(name);
-                }
-
-                // Register fresh service worker
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('SW registered:', reg.scope))
-                    .catch(err => console.log('SW error:', err));
-            });
-        }
-    </script>
+    <script src="js/sw-register.js"></script>
 </body>
 </html>

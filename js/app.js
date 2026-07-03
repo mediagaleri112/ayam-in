@@ -168,6 +168,35 @@ const App = {
             });
         });
 
+        // Data-action delegation (replaces inline onclick handlers)
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-action]');
+            if (!el) return;
+            const action = el.dataset.action;
+            switch (action) {
+                case 'export': this.exportData(); break;
+                case 'import-trigger': document.getElementById('importFile').click(); break;
+                case 'open-modal': this.openModal(); break;
+                case 'open-product-modal': this.openProductModal(); break;
+                case 'open-expense-modal': this.openExpenseModal(); break;
+                case 'cash-in': this.openCashModal('in'); break;
+                case 'cash-out': this.openCashModal('out'); break;
+                case 'cash-adjust': this.openCashModal('adjust'); break;
+                case 'report-today': this.setReportToday(); break;
+                case 'report-this-month': this.setReportThisMonth(); break;
+                case 'report-last-month': this.setReportLastMonth(); break;
+                case 'generate-report': this.generateReport(); break;
+                case 'close-modal': this.closeModal(); break;
+                case 'close-product-modal': this.closeProductModal(); break;
+                case 'close-expense-modal': this.closeExpenseModal(); break;
+                case 'close-cash-modal': this.closeCashModal(); break;
+                case 'close-delete-modal': this.closeDeleteModal(); break;
+            }
+        });
+
+        // Import file change
+        document.getElementById('importFile').addEventListener('change', (e) => this.importData(e));
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -926,7 +955,7 @@ const App = {
             const citySelect = document.getElementById('selectCity');
             const cities = await DataStore.getProducts();
             citySelect.innerHTML = '<option value="">- Pilih Kota -</option>' +
-                cities.map(c => `<option value="${c.id}">${c.name} (${c.initial})</option>`).join('');
+                cities.map(c => `<option value="${esc(c.id)}">${esc(c.name)} (${esc(c.initial)})</option>`).join('');
 
             // Reset product dropdown
             const productSelect = document.getElementById('selectProduct');
@@ -1006,7 +1035,7 @@ const App = {
 
         const products = city.products || [];
         productSelect.innerHTML = '<option value="">- Pilih Produk -</option>' +
-            products.map(p => `<option value="${p.id}" ${preselectProductId === p.id ? 'selected' : ''}>${p.name} ${p.size}</option>`).join('');
+            products.map(p => `<option value="${esc(p.id)}" ${preselectProductId === p.id ? 'selected' : ''}>${esc(p.name)} ${esc(p.size)}</option>`).join('');
         productSelect.disabled = false;
 
         if (preselectProductId) {
@@ -1058,9 +1087,9 @@ const App = {
                     productsList.innerHTML = products.map((prod, i) => `
                         <div class="city-product-item">
                             <span class="product-num">${i + 1}.</span>
-                            <input type="text" value="${prod.name}" class="city-prod-name" placeholder="Nama Produk">
-                            <span class="product-size">${prod.size}</span>
-                            <input type="number" value="${prod.defaultPrice || 0}" class="city-prod-price" placeholder="Harga" min="0">
+                            <input type="text" value="${esc(prod.name)}" class="city-prod-name" placeholder="Nama Produk">
+                            <span class="product-size">${esc(prod.size)}</span>
+                            <input type="number" value="${esc(String(prod.defaultPrice || 0))}" class="city-prod-price" placeholder="Harga" min="0">
                         </div>
                     `).join('');
                 }
@@ -1660,6 +1689,12 @@ const App = {
         const file = event.target.files[0];
         if (!file) return;
 
+        // File size limit: 5MB
+        if (file.size > 5 * 1024 * 1024) {
+            this.showToast('Ukuran file terlalu besar (maksimal 5MB)', 'error');
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
@@ -1668,6 +1703,35 @@ const App = {
                 if (!data.transactions || !data.products) {
                     this.showToast('Format file tidak valid', 'error');
                     return;
+                }
+
+                // Structure validation
+                if (!Array.isArray(data.transactions) || !Array.isArray(data.products)) {
+                    this.showToast('Format data tidak valid: transaksi dan produk harus berupa array', 'error');
+                    return;
+                }
+
+                // Record count limit
+                const totalCount = data.transactions.length + data.products.length + (data.expenses || []).length + (data.cashflow || []).length;
+                if (totalCount > 10000) {
+                    this.showToast('Data terlalu besar (maksimal 10.000 record)', 'error');
+                    return;
+                }
+
+                // Validate required fields in transactions
+                for (const tx of data.transactions) {
+                    if (!tx.id || !tx.cityId) {
+                        this.showToast('Data transaksi tidak lengkap (id dan cityId diperlukan)', 'error');
+                        return;
+                    }
+                }
+
+                // Validate required fields in products/cities
+                for (const city of data.products) {
+                    if (!city.id || !city.name) {
+                        this.showToast('Data kota tidak lengkap (id dan name diperlukan)', 'error');
+                        return;
+                    }
                 }
 
                 if (confirm(`Import data dari ${data.exportDate ? new Date(data.exportDate).toLocaleDateString('id-ID') : 'backup'}?\n\nTransaksi: ${data.transactions.length}\nProduk: ${data.products.length}\nPengeluaran: ${(data.expenses || []).length}\nKas: ${(data.cashflow || []).length}\n\nData lama akan diganti.`)) {
@@ -1738,7 +1802,7 @@ const App = {
             info: 'ℹ️'
         };
 
-        toast.innerHTML = `<span>${icons[type] || icons.info}</span> ${message}`;
+        toast.innerHTML = `<span>${icons[type] || icons.info}</span> ${esc(message)}`;
         container.appendChild(toast);
 
         // Animate toast in

@@ -3,3 +3,5 @@ node_modules/
 command.txt
 *.log
 .DS_Store
+.vercel
+.mimocode/

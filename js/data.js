@@ -19,16 +19,15 @@ const DataStore = {
 
     // Input validation helpers
     _validateString(val, name, maxLen = 255) {
-        if (val && typeof val === 'string') {
-            if (val.length > maxLen) throw new Error(`${name} maksimal ${maxLen} karakter`);
-            return val.trim();
-        }
-        return val || null;
+        if (val === null || val === undefined) return null;
+        if (typeof val !== 'string') return null;
+        if (val.length > maxLen) throw new Error(`${name} maksimal ${maxLen} karakter`);
+        return val.trim();
     },
 
     _validateNumber(val, name, min = 0, max = 999999999) {
         const num = parseFloat(val);
-        if (isNaN(num)) return min;
+        if (isNaN(num)) throw new Error(`${name} harus berupa angka`);
         if (num < min || num > max) throw new Error(`${name} harus antara ${min} dan ${max}`);
         return num;
     },
@@ -273,10 +272,11 @@ const DataStore = {
     },
 
     async updateCity(id, data) {
+        this._validateId(id);
         const { error: cityErr } = await db.from('cities').update({
-            name: data.name,
-            initial: data.initial,
-            number_form: data.numberForm || null,
+            name: this._validateString(data.name, 'Nama Kota', 100),
+            initial: this._validateString(data.initial, 'Inisial', 10),
+            number_form: this._validateString(data.numberForm, 'Nomor Form', 20),
             updated_at: new Date().toISOString()
         }).eq('id', id);
         if (cityErr) throw cityErr;
@@ -287,9 +287,9 @@ const DataStore = {
             const productRows = data.products.map(p => ({
                 id: p.id || this.generateId(),
                 city_id: id,
-                name: p.name,
-                size: p.size,
-                default_price: p.defaultPrice || 0,
+                name: this._validateString(p.name, 'Nama Produk', 100),
+                size: this._validateString(p.size, 'Ukuran', 10),
+                default_price: this._validateNumber(p.defaultPrice || 0, 'Harga Default', 0, 999999999),
                 created_at: new Date().toISOString()
             }));
             const { error: prodErr } = await db.from('products').insert(productRows);
@@ -298,6 +298,7 @@ const DataStore = {
     },
 
     async deleteCity(id) {
+        this._validateId(id);
         // Products cascade delete via FK
         const { error } = await db.from('cities').delete().eq('id', id);
         if (error) throw error;
@@ -438,28 +439,31 @@ const DataStore = {
     },
 
     async updateTransaction(id, data) {
+        this._validateId(id);
+        const validStatus = ['lunas', 'belum'];
         const { error } = await db.from('transactions').update({
-            city_id: data.cityId,
-            city_name: data.cityName,
-            product_id: data.productId,
-            product_name: data.productName,
-            product_initial: data.productInitial,
-            number_form: data.numberForm,
-            size: data.size,
-            ply: data.ply,
-            price_per_title: data.pricePerTitle,
-            quantity: data.quantity,
-            total_price: data.totalPrice,
-            material_cost: data.materialCost,
-            payment_status: data.paymentStatus,
-            date: data.date,
-            note: data.note,
+            city_id: this._validateString(data.cityId, 'Kota ID', 50),
+            city_name: this._validateString(data.cityName, 'Nama Kota', 100),
+            product_id: this._validateString(data.productId, 'Produk ID', 50),
+            product_name: this._validateString(data.productName, 'Nama Produk', 100),
+            product_initial: this._validateString(data.productInitial, 'Inisial', 10),
+            number_form: this._validateString(data.numberForm, 'Nomor Form', 20),
+            size: this._validateString(data.size, 'Ukuran', 10),
+            ply: this._validateNumber(data.ply, 'Ply', 1, 10),
+            price_per_title: this._validateNumber(data.pricePerTitle, 'Harga', 0, 999999999),
+            quantity: this._validateNumber(data.quantity, 'Jumlah', 1, 99999),
+            total_price: this._validateNumber(data.totalPrice, 'Total', 0, 99999999999),
+            material_cost: this._validateNumber(data.materialCost || 0, 'Biaya Bahan', 0, 999999999),
+            payment_status: validStatus.includes(data.paymentStatus) ? data.paymentStatus : 'belum',
+            date: data.date || null,
+            note: this._validateString(data.note, 'Catatan', 500),
             updated_at: new Date().toISOString()
         }).eq('id', id);
         if (error) throw error;
     },
 
     async deleteTransaction(id) {
+        this._validateId(id);
         const { error } = await db.from('transactions').delete().eq('id', id);
         if (error) throw error;
     },
@@ -604,23 +608,26 @@ const DataStore = {
     },
 
     async updateExpense(id, data) {
+        this._validateId(id);
+        const validStatus = ['lunas', 'belum', 'titip'];
         const { error } = await db.from('expenses').update({
-            name: data.name,
-            quantity: data.quantity,
-            unit_price: data.unitPrice,
-            total_cost: data.totalCost,
-            payment_status: data.paymentStatus,
-            titip_amount: data.titipAmount,
-            remaining_amount: data.remainingAmount,
-            linked_transaction_id: data.linkedTransactionId,
-            date: data.date,
-            note: data.note,
+            name: this._validateString(data.name, 'Nama Bahan', 200),
+            quantity: this._validateNumber(data.quantity, 'Jumlah', 1, 99999),
+            unit_price: this._validateNumber(data.unitPrice, 'Harga Satuan', 0, 999999999),
+            total_cost: this._validateNumber(data.totalCost, 'Total Biaya', 0, 99999999999),
+            payment_status: validStatus.includes(data.paymentStatus) ? data.paymentStatus : 'lunas',
+            titip_amount: this._validateNumber(data.titipAmount || 0, 'Titip Dana', 0, 999999999),
+            remaining_amount: this._validateNumber(data.remainingAmount || 0, 'Sisa Bayar', 0, 999999999),
+            linked_transaction_id: this._validateString(data.linkedTransactionId, 'Link Transaksi', 50),
+            date: data.date || null,
+            note: this._validateString(data.note, 'Catatan', 500),
             updated_at: new Date().toISOString()
         }).eq('id', id);
         if (error) throw error;
     },
 
     async deleteExpense(id) {
+        this._validateId(id);
         const { error } = await db.from('expenses').delete().eq('id', id);
         if (error) throw error;
     },
@@ -777,6 +784,7 @@ const DataStore = {
     },
 
     async deleteCashflow(id) {
+        this._validateId(id);
         const { error } = await db.from('cashflow').delete().eq('id', id);
         if (error) throw error;
     },

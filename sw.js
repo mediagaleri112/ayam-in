@@ -1,4 +1,4 @@
-const CACHE_NAME = 'media112-v8';
+const CACHE_NAME = 'media112-v9';
 const urlsToCache = [
     './',
     './index.html',
@@ -7,6 +7,7 @@ const urlsToCache = [
     './js/data.js',
     './js/animations.js',
     './js/app.js',
+    './js/sw-register.js',
     './manifest.json',
     './img/icon.svg'
 ];
