@@ -249,24 +249,10 @@ const DataStore = {
             id: cityId,
             name: name,
             initial: initial,
-            number_form: this._validateString(data.numberForm, 'Nomor form', 20),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         });
         if (cityErr) throw cityErr;
-
-        if (data.products && data.products.length > 0) {
-            const productRows = data.products.map(p => ({
-                id: p.id || this.generateId(),
-                city_id: cityId,
-                name: p.name,
-                size: p.size,
-                default_price: p.defaultPrice || 0,
-                created_at: new Date().toISOString()
-            }));
-            const { error: prodErr } = await db.from('products').insert(productRows);
-            if (prodErr) throw prodErr;
-        }
 
         return { id: cityId };
     },
@@ -276,25 +262,9 @@ const DataStore = {
         const { error: cityErr } = await db.from('cities').update({
             name: this._validateString(data.name, 'Nama Kota', 100),
             initial: this._validateString(data.initial, 'Inisial', 10),
-            number_form: this._validateString(data.numberForm, 'Nomor Form', 20),
             updated_at: new Date().toISOString()
         }).eq('id', id);
         if (cityErr) throw cityErr;
-
-        // Replace products: delete old, insert new
-        await db.from('products').delete().eq('city_id', id);
-        if (data.products && data.products.length > 0) {
-            const productRows = data.products.map(p => ({
-                id: p.id || this.generateId(),
-                city_id: id,
-                name: this._validateString(p.name, 'Nama Produk', 100),
-                size: this._validateString(p.size, 'Ukuran', 10),
-                default_price: this._validateNumber(p.defaultPrice || 0, 'Harga Default', 0, 999999999),
-                created_at: new Date().toISOString()
-            }));
-            const { error: prodErr } = await db.from('products').insert(productRows);
-            if (prodErr) throw prodErr;
-        }
     },
 
     async deleteCity(id) {

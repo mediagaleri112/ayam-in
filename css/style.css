@@ -583,6 +583,70 @@ body {
 }
 
 /* ============================================
+   Checklist Row (per-product fields)
+   ============================================ */
+
+.checklist-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+
+.checklist-row:hover {
+    background: var(--surface);
+}
+
+.checklist-row:last-child {
+    border-bottom: none;
+}
+
+.checklist-row .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.checklist-row .checklist-item:hover {
+    background: none;
+}
+
+.checklist-fields {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    align-items: center;
+}
+
+.checklist-fields .form-input {
+    width: auto;
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+
+.checklist-fields .prod-qty {
+    width: 60px;
+    text-align: center;
+}
+
+.checklist-fields .prod-number {
+    width: 100px;
+}
+
+.checklist-fields .prod-price {
+    width: 100px;
+    text-align: right;
+}
+
+/* ============================================
    Empty State
    ============================================ */
 
@@ -1939,6 +2003,37 @@ textarea.form-input {
         font-size: 20px;
     }
 
+    .checklist-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .checklist-row .checklist-item {
+        padding: 0;
+    }
+
+    .checklist-fields {
+        flex-wrap: wrap;
+    }
+
+    .checklist-fields .form-input {
+        flex: 1;
+        min-width: 60px;
+    }
+
+    .checklist-fields .prod-qty {
+        width: auto;
+    }
+
+    .checklist-fields .prod-number {
+        width: auto;
+    }
+
+    .checklist-fields .prod-price {
+        width: auto;
+    }
+
     .report-filter {
         flex-direction: column;
         align-items: stretch;
@@ -2193,6 +2288,20 @@ textarea.form-input {
 [data-theme="dark"] .checklist-all {
     background: var(--surface);
     border-bottom-color: var(--border);
+}
+[data-theme="dark"] .checklist-row {
+    border-bottom-color: var(--border);
+}
+[data-theme="dark"] .checklist-row:hover {
+    background: var(--surface);
+}
+[data-theme="dark"] .checklist-fields .form-input {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
+}
+[data-theme="dark"] .checklist-fields .form-input:focus {
+    border-color: var(--primary);
 }
 
 /* Modal dark */

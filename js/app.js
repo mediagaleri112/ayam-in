@@ -235,9 +235,11 @@ const App = {
             }
         });
 
-        // Auto-calculate total price
-        ['productPrice', 'productQuantity'].forEach(id => {
-            document.getElementById(id).addEventListener('input', () => this.calculateTotal());
+        // Auto-calculate total price (delegated for per-product fields)
+        document.getElementById('productChecklistItems').addEventListener('input', (e) => {
+            if (e.target.classList.contains('prod-qty') || e.target.classList.contains('prod-price')) {
+                this.calculateTotal();
+            }
         });
 
         // City search
@@ -640,11 +642,6 @@ const App = {
         }
 
         container.innerHTML = cities.map(city => {
-            const products = city.products || [];
-            const productTags = products.map(p =>
-                `<span class="product-tag">${esc(p.name)} ${esc(p.size)}</span>`
-            ).join('');
-
             return `
                 <div class="product-card" data-id="${esc(city.id)}">
                     <div class="product-header">
@@ -655,10 +652,6 @@ const App = {
                         </div>
                     </div>
                     <div class="product-name">${esc(city.name)}</div>
-                    <div class="product-details">
-                        ${productTags}
-                    </div>
-                    ${city.numberForm ? `<div class="product-number">No: ${esc(city.numberForm)}</div>` : ''}
                 </div>
             `;
         }).join('');
@@ -1126,9 +1119,16 @@ const App = {
                     document.getElementById('transactionId').value = t.id;
                     document.getElementById('selectCity').value = t.cityId || '';
                     await this.onCityChange({ target: { value: t.cityId || '' } }, [t.productId]);
+
+                    // Set per-product fields for the selected product
+                    const row = document.querySelector(`.checklist-row[data-product-id="${t.productId}"]`);
+                    if (row) {
+                        row.querySelector('.prod-qty').value = t.quantity || 1;
+                        row.querySelector('.prod-number').value = t.numberForm || '';
+                        row.querySelector('.prod-price').value = t.pricePerTitle || 0;
+                    }
+
                     document.getElementById('productPly').value = t.ply || 4;
-                    document.getElementById('productPrice').value = t.pricePerTitle || 0;
-                    document.getElementById('productQuantity').value = t.quantity || 1;
                     document.getElementById('totalPrice').value = DataStore.formatCurrency(t.totalPrice || 0);
                     document.querySelector(`input[name="paymentStatus"][value="${t.paymentStatus}"]`).checked = true;
                     document.getElementById('transactionDate').value = t.date;
@@ -1139,7 +1139,6 @@ const App = {
                 form.reset();
                 document.getElementById('transactionId').value = '';
                 document.getElementById('productPly').value = '4';
-                document.getElementById('productQuantity').value = '1';
                 document.querySelector('input[name="paymentStatus"][value="lunas"]').checked = true;
                 this.setTodayDate();
                 document.getElementById('totalPrice').value = '';
@@ -1190,20 +1189,22 @@ const App = {
         selectAll.checked = false;
 
         items.innerHTML = products.map(p => `
-            <label class="checklist-item">
-                <input type="checkbox" name="productCheck" value="${esc(p.id)}" data-name="${esc(p.name)}" data-size="${esc(p.size)}" data-initial="${esc(city.initial)}" data-number="${esc(city.numberForm || '')}" data-price="${p.defaultPrice || 0}" ${preselectProductIds && preselectProductIds.includes(p.id) ? 'checked' : ''}>
-                <span class="checklist-check"></span>
-                <span class="checklist-label">${esc(p.name)} ${esc(p.size)}</span>
-            </label>
+            <div class="checklist-row" data-product-id="${esc(p.id)}">
+                <label class="checklist-item">
+                    <input type="checkbox" name="productCheck" value="${esc(p.id)}" data-name="${esc(p.name)}" data-size="${esc(p.size)}" data-initial="${esc(city.initial)}" ${preselectProductIds && preselectProductIds.includes(p.id) ? 'checked' : ''}>
+                    <span class="checklist-check"></span>
+                    <span class="checklist-label">${esc(p.name)} ${esc(p.size)}</span>
+                </label>
+                <div class="checklist-fields">
+                    <input type="number" class="form-input prod-qty" value="1" min="1" max="99999" placeholder="Qty">
+                    <input type="text" class="form-input prod-number" maxlength="10" placeholder="No. Form">
+                    <input type="number" class="form-input prod-price" value="${p.defaultPrice || 0}" min="0" placeholder="Rp.">
+                </div>
+            </div>
         `).join('');
 
-        // Set default price from first product
-        if (products.length > 0) {
-            document.getElementById('productPrice').value = products[0].defaultPrice || 0;
-            this.calculateTotal();
-        }
-
         this.updateProductCheckState();
+        this.calculateTotal();
     },
 
     updateProductCheckState() {
@@ -1232,9 +1233,6 @@ const App = {
             const modal = document.getElementById('productModal');
             const title = document.getElementById('productModalTitle');
             const form = document.getElementById('productForm');
-            const productsList = document.getElementById('cityProductsList');
-
-            const defaultProducts = DataStore.getDefaultProducts()[0].products;
 
             if (productId) {
                 const p = await DataStore.getProduct(productId);
@@ -1243,31 +1241,11 @@ const App = {
                     document.getElementById('editProductId').value = p.id;
                     document.getElementById('editProductName').value = p.name;
                     document.getElementById('editProductInitial').value = p.initial;
-                    document.getElementById('editNumberForm').value = p.numberForm || '';
-
-                    const products = p.products || [];
-                    productsList.innerHTML = products.map((prod, i) => `
-                        <div class="city-product-item" data-product-id="${esc(prod.id)}">
-                            <span class="product-num">${i + 1}.</span>
-                            <input type="text" value="${esc(prod.name)}" class="city-prod-name" placeholder="Nama Produk">
-                            <span class="product-size">${esc(prod.size)}</span>
-                            <input type="number" value="${esc(String(prod.defaultPrice || 0))}" class="city-prod-price" placeholder="Harga" min="0">
-                        </div>
-                    `).join('');
                 }
             } else {
                 title.textContent = 'Tambah Kota';
                 form.reset();
                 document.getElementById('editProductId').value = '';
-
-                productsList.innerHTML = defaultProducts.map((prod, i) => `
-                    <div class="city-product-item">
-                        <span class="product-num">${i + 1}.</span>
-                        <input type="text" value="${prod.name}" class="city-prod-name" placeholder="Nama Produk">
-                        <span class="product-size">${prod.size}</span>
-                        <input type="number" value="0" class="city-prod-price" placeholder="Harga" min="0">
-                    </div>
-                `).join('');
             }
 
             Animations.modalOpen('productModal');
@@ -1310,9 +1288,15 @@ const App = {
     // =====================
 
     calculateTotal() {
-        const price = parseFloat(document.getElementById('productPrice').value) || 0;
-        const quantity = parseInt(document.getElementById('productQuantity').value) || 1;
-        const total = price * quantity;
+        const checks = document.querySelectorAll('input[name="productCheck"]:checked');
+        let total = 0;
+        checks.forEach(check => {
+            const row = check.closest('.checklist-row');
+            if (!row) return;
+            const price = parseFloat(row.querySelector('.prod-price').value) || 0;
+            const qty = parseInt(row.querySelector('.prod-qty').value) || 1;
+            total += price * qty;
+        });
         document.getElementById('totalPrice').value = DataStore.formatCurrency(total);
     },
 
@@ -1329,19 +1313,21 @@ const App = {
                     this.showToast('Pilih minimal satu produk', 'error');
                     return;
                 }
+                const row = checked.closest('.checklist-row');
+                const price = parseFloat(row.querySelector('.prod-price').value) || 0;
+                const qty = parseInt(row.querySelector('.prod-qty').value) || 1;
                 const data = {
                     cityId: cityId,
                     cityName: city ? city.name : '',
                     productId: checked.value,
                     productName: checked.dataset.name,
                     productInitial: checked.dataset.initial,
-                    numberForm: checked.dataset.number,
+                    numberForm: row.querySelector('.prod-number').value,
                     size: checked.dataset.size,
                     ply: parseInt(document.getElementById('productPly').value),
-                    pricePerTitle: parseFloat(document.getElementById('productPrice').value) || 0,
-                    quantity: parseInt(document.getElementById('productQuantity').value) || 1,
-                    totalPrice: (parseFloat(document.getElementById('productPrice').value) || 0) *
-                                (parseInt(document.getElementById('productQuantity').value) || 1),
+                    pricePerTitle: price,
+                    quantity: qty,
+                    totalPrice: price * qty,
                     paymentStatus: document.querySelector('input[name="paymentStatus"]:checked').value,
                     materialCost: 0,
                     date: document.getElementById('transactionDate').value,
@@ -1357,26 +1343,27 @@ const App = {
                     return;
                 }
                 const ply = parseInt(document.getElementById('productPly').value);
-                const pricePerTitle = parseFloat(document.getElementById('productPrice').value) || 0;
-                const quantity = parseInt(document.getElementById('productQuantity').value) || 1;
                 const paymentStatus = document.querySelector('input[name="paymentStatus"]:checked').value;
                 const date = document.getElementById('transactionDate').value;
                 const note = document.getElementById('transactionNote').value;
 
                 let count = 0;
                 for (const check of checks) {
+                    const row = check.closest('.checklist-row');
+                    const price = parseFloat(row.querySelector('.prod-price').value) || 0;
+                    const qty = parseInt(row.querySelector('.prod-qty').value) || 1;
                     const data = {
                         cityId: cityId,
                         cityName: city ? city.name : '',
                         productId: check.value,
                         productName: check.dataset.name,
                         productInitial: check.dataset.initial,
-                        numberForm: check.dataset.number,
+                        numberForm: row.querySelector('.prod-number').value,
                         size: check.dataset.size,
                         ply,
-                        pricePerTitle,
-                        quantity,
-                        totalPrice: pricePerTitle * quantity,
+                        pricePerTitle: price,
+                        quantity: qty,
+                        totalPrice: price * qty,
                         paymentStatus,
                         materialCost: 0,
                         date,
@@ -1401,29 +1388,10 @@ const App = {
             const id = document.getElementById('editProductId').value;
             const name = document.getElementById('editProductName').value.toUpperCase();
             const initial = document.getElementById('editProductInitial').value.toUpperCase();
-            const numberForm = document.getElementById('editNumberForm').value;
-
-            const productItems = document.querySelectorAll('.city-product-item');
-            const products = [];
-            productItems.forEach((item, i) => {
-                const existingId = item.getAttribute('data-product-id');
-                const prodName = item.querySelector('.city-prod-name').value;
-                const prodPrice = parseFloat(item.querySelector('.city-prod-price').value) || 0;
-                const sizeEl = item.querySelector('.product-size');
-                const size = sizeEl ? sizeEl.textContent : (i < 3 ? '1/2' : '1/4');
-                products.push({
-                    id: existingId || DataStore.generateId(),
-                    name: prodName,
-                    size: size,
-                    defaultPrice: prodPrice
-                });
-            });
 
             const data = {
                 name: name,
-                initial: initial,
-                numberForm: numberForm,
-                products: products
+                initial: initial
             };
 
             if (id) {

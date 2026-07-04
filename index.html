@@ -86,7 +86,7 @@
                 <input type="file" id="importFile" accept=".json" style="display:none" data-action="import">
                 <button class="btn btn-danger btn-sm btn-block" data-action="logout">🚪 Logout</button>
             </div>
-            <div class="version">v5.6.1</div>
+            <div class="version">v5.7.0</div>
         </div>
     </aside>
 
@@ -406,17 +406,6 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="productPrice">Harga per Judul (Rp) *</label>
-                        <input type="number" id="productPrice" class="form-input" placeholder="0" min="0" max="999999999" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="productQuantity">Jumlah *</label>
-                        <input type="number" id="productQuantity" class="form-input" placeholder="0" min="1" max="99999" value="1" required>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label for="totalPrice">Total Harga Jual</label>
                     <input type="text" id="totalPrice" class="form-input" readonly>
@@ -475,23 +464,9 @@
                     <input type="text" id="editProductName" class="form-input" maxlength="100" placeholder="Contoh: JAKARTA" required style="text-transform: uppercase;">
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="editProductInitial">Inisial (4 Karakter) *</label>
-                        <input type="text" id="editProductInitial" class="form-input" maxlength="4" placeholder="JKT" required style="text-transform: uppercase;">
-                    </div>
-                    <div class="form-group">
-                        <label for="editNumberForm">Nomor Form (10 Digit)</label>
-                        <input type="text" id="editNumberForm" class="form-input" maxlength="10" placeholder="1234567890" inputmode="numeric" pattern="[0-9]*">
-                    </div>
-                </div>
-
-                <div class="form-divider">
-                    <span>Produk Default Kota Ini</span>
-                </div>
-
-                <div id="cityProductsList" class="city-products-list">
-                    <!-- Products will be rendered here -->
+                <div class="form-group">
+                    <label for="editProductInitial">Inisial (4 Karakter) *</label>
+                    <input type="text" id="editProductInitial" class="form-input" maxlength="4" placeholder="JKT" required style="text-transform: uppercase;">
                 </div>
 
                 <div class="form-actions">
