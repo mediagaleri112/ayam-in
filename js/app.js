@@ -20,20 +20,28 @@ const App = {
     editingExpenseId: null,
     deleteCallback: null,
     currentUser: null,
+    sessionTimeout: 1800000, // 1800 detik = 30 menit
+    sessionTimer: null,
 
     // Initialize app
     async init() {
         try {
             this.initTheme();
             this.bindEvents();
+            this.initSessionTimeout();
+            this.initAutoLogout();
 
             // Listen for auth state changes (token refresh, logout from other tab)
             db.auth.onAuthStateChange((event, session) => {
                 if (event === 'SIGNED_OUT') {
                     this.currentUser = null;
+                    this.clearSessionTimeout();
                     this.showLogin();
                 } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                    if (session) this.currentUser = session.user;
+                    if (session) {
+                        this.currentUser = session.user;
+                        this.resetSessionTimeout();
+                    }
                 }
             });
 
@@ -46,6 +54,7 @@ const App = {
                 await this.loadDashboard();
                 this.setTodayDate();
                 this.showApp();
+                this.resetSessionTimeout();
             } else {
                 this.showLogin();
             }
@@ -53,6 +62,44 @@ const App = {
             console.error('App init error:', err);
             this.showLogin();
         }
+    },
+
+    // =====================
+    // SESSION TIMEOUT & AUTO LOGOUT
+    // =====================
+
+    initSessionTimeout() {
+        // Reset timer setiap ada aktivitas user
+        ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, () => {
+                if (this.currentUser) this.resetSessionTimeout();
+            }, { passive: true });
+        });
+    },
+
+    resetSessionTimeout() {
+        this.clearSessionTimeout();
+        this.sessionTimer = setTimeout(() => {
+            this.showToast('Sesi habis (30 menit tanpa aktivitas). Silakan login kembali.', 'warning');
+            this.handleLogout();
+        }, this.sessionTimeout);
+    },
+
+    clearSessionTimeout() {
+        if (this.sessionTimer) {
+            clearTimeout(this.sessionTimer);
+            this.sessionTimer = null;
+        }
+    },
+
+    initAutoLogout() {
+        // Auto logout saat tab/browser ditutup
+        window.addEventListener('beforeunload', () => {
+            if (this.currentUser) {
+                // Hapus session dari Supabase
+                db.auth.signOut();
+            }
+        });
     },
 
     // =====================
@@ -99,6 +146,7 @@ const App = {
     },
 
     async handleLogout() {
+        this.clearSessionTimeout();
         await db.auth.signOut();
         this.currentUser = null;
         this.showLogin();
@@ -243,6 +291,7 @@ const App = {
             const el = e.target.closest('[data-action]');
             if (!el) return;
             const action = el.dataset.action;
+            const id = el.dataset.id;
             switch (action) {
                 case 'export': this.exportData(); break;
                 case 'import-trigger': document.getElementById('importFile').click(); break;
@@ -256,12 +305,23 @@ const App = {
                 case 'report-this-month': this.setReportThisMonth(); break;
                 case 'report-last-month': this.setReportLastMonth(); break;
                 case 'generate-report': this.generateReport(); break;
+                case 'print-report': this.printReport(); break;
                 case 'close-modal': this.closeModal(); break;
                 case 'close-product-modal': this.closeProductModal(); break;
                 case 'close-expense-modal': this.closeExpenseModal(); break;
                 case 'close-cash-modal': this.closeCashModal(); break;
                 case 'close-delete-modal': this.closeDeleteModal(); break;
                 case 'logout': this.handleLogout(); break;
+                case 'edit-transaction': this.editTransaction(id); break;
+                case 'delete-transaction': this.deleteTransaction(id); break;
+                case 'quick-pay-transaction': this.quickPayTransaction(id); break;
+                case 'edit-product': this.editProduct(id); break;
+                case 'delete-product': this.deleteProduct(id); break;
+                case 'edit-expense': this.editExpense(id); break;
+                case 'delete-expense': this.deleteExpense(id); break;
+                case 'quick-pay-expense': this.quickPayExpense(id); break;
+                case 'edit-cashflow': this.editCashflow(id); break;
+                case 'delete-cashflow': this.deleteCashflow(id); break;
             }
         });
 
@@ -486,7 +546,7 @@ const App = {
                 <div class="empty-state">
                     <span class="empty-icon">📝</span>
                     <p>Belum ada transaksi</p>
-                    <button class="btn btn-primary" onclick="App.openModal()">+ Tambah Transaksi</button>
+                    <button class="btn btn-primary" data-action="open-modal">+ Tambah Transaksi</button>
                 </div>
             `;
             return;
@@ -521,9 +581,9 @@ const App = {
                 </div>
                 ${showActions ? `
                     <div class="transaction-actions">
-                        ${t.paymentStatus === 'belum' ? `<button class="btn-icon btn-pay" onclick="App.quickPayTransaction('${esc(t.id)}')" title="Tandai Lunas">💰</button>` : ''}
-                        <button class="btn-icon btn-edit" onclick="App.editTransaction('${esc(t.id)}')" title="Edit">✏️</button>
-                        <button class="btn-icon btn-delete" onclick="App.deleteTransaction('${esc(t.id)}')" title="Hapus">🗑️</button>
+                        ${t.paymentStatus === 'belum' ? `<button class="btn-icon btn-pay" data-action="quick-pay-transaction" data-id="${esc(t.id)}" title="Tandai Lunas">💰</button>` : ''}
+                        <button class="btn-icon btn-edit" data-action="edit-transaction" data-id="${esc(t.id)}" title="Edit">✏️</button>
+                        <button class="btn-icon btn-delete" data-action="delete-transaction" data-id="${esc(t.id)}" title="Hapus">🗑️</button>
                     </div>
                 ` : ''}
             </div>
@@ -564,7 +624,7 @@ const App = {
                 <div class="empty-state">
                     <span class="empty-icon">🏙️</span>
                     <p>Belum ada kota</p>
-                    <button class="btn btn-primary" onclick="App.openProductModal()">+ Tambah Kota</button>
+                    <button class="btn btn-primary" data-action="open-product-modal">+ Tambah Kota</button>
                 </div>
             `;
             return;
@@ -581,8 +641,8 @@ const App = {
                     <div class="product-header">
                         <div class="product-initial">${esc(city.initial)}</div>
                         <div class="product-actions">
-                            <button class="btn-icon btn-edit" onclick="App.editProduct('${esc(city.id)}')" title="Edit">✏️</button>
-                            <button class="btn-icon btn-delete" onclick="App.deleteProduct('${esc(city.id)}')" title="Hapus">🗑️</button>
+                            <button class="btn-icon btn-edit" data-action="edit-product" data-id="${esc(city.id)}" title="Edit">✏️</button>
+                            <button class="btn-icon btn-delete" data-action="delete-product" data-id="${esc(city.id)}" title="Hapus">🗑️</button>
                         </div>
                     </div>
                     <div class="product-name">${esc(city.name)}</div>
@@ -653,7 +713,7 @@ const App = {
                 <div class="empty-state">
                     <span class="empty-icon">🧾</span>
                     <p>Belum ada catatan belanja bahan</p>
-                    <button class="btn btn-primary" onclick="App.openExpenseModal()">+ Tambah Belanja</button>
+                    <button class="btn btn-primary" data-action="open-expense-modal">+ Tambah Belanja</button>
                 </div>
             `;
             return;
@@ -691,9 +751,9 @@ const App = {
                 </div>
                 ${showActions ? `
                 <div class="transaction-actions">
-                    ${e.paymentStatus === 'belum' || e.paymentStatus === 'titip' ? `<button class="btn-icon btn-pay" onclick="App.quickPayExpense('${esc(e.id)}')" title="Tandai Lunas">💰</button>` : ''}
-                    <button class="btn-icon btn-edit" onclick="App.editExpense('${esc(e.id)}')" title="Edit">✏️</button>
-                    <button class="btn-icon btn-delete" onclick="App.deleteExpense('${esc(e.id)}')" title="Hapus">🗑️</button>
+                    ${e.paymentStatus === 'belum' || e.paymentStatus === 'titip' ? `<button class="btn-icon btn-pay" data-action="quick-pay-expense" data-id="${esc(e.id)}" title="Tandai Lunas">💰</button>` : ''}
+                    <button class="btn-icon btn-edit" data-action="edit-expense" data-id="${esc(e.id)}" title="Edit">✏️</button>
+                    <button class="btn-icon btn-delete" data-action="delete-expense" data-id="${esc(e.id)}" title="Hapus">🗑️</button>
                 </div>
                 ` : ''}
             </div>
@@ -890,7 +950,7 @@ const App = {
                 <div class="empty-state">
                     <span class="empty-icon">💵</span>
                     <p>Belum ada transaksi kas</p>
-                    <button class="btn btn-primary" onclick="App.openCashModal('in')">+ Setor Kas</button>
+                    <button class="btn btn-primary" data-action="cash-in">+ Setor Kas</button>
                 </div>
             `;
             return;
@@ -927,8 +987,8 @@ const App = {
                     <span class="transaction-status status-titip">${typeText}</span>
                 </div>
                 <div class="transaction-actions">
-                    <button class="btn-icon btn-edit" onclick="App.editCashflow('${esc(item.id)}')" title="Edit">✏️</button>
-                    <button class="btn-icon btn-delete" onclick="App.deleteCashflow('${esc(item.id)}')" title="Hapus">🗑️</button>
+                    <button class="btn-icon btn-edit" data-action="edit-cashflow" data-id="${esc(item.id)}" title="Edit">✏️</button>
+                    <button class="btn-icon btn-delete" data-action="delete-cashflow" data-id="${esc(item.id)}" title="Hapus">🗑️</button>
                 </div>
             </div>
         `;
@@ -1705,7 +1765,7 @@ const App = {
             </div>
 
             <div class="report-section" style="text-align: right;">
-                <button class="btn btn-primary" onclick="App.printReport()">🖨️ Cetak Laporan</button>
+                <button class="btn btn-primary" data-action="print-report">🖨️ Cetak Laporan</button>
             </div>
         `;
 
