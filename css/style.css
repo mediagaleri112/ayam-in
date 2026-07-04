@@ -373,6 +373,7 @@ body {
     box-shadow: var(--shadow);
     transition: var(--transition);
     border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
 }
 
 .stat-card:hover {
@@ -395,8 +396,14 @@ body {
 .stat-profit .stat-icon { background: linear-gradient(135deg, #e0e7ff, #c7d2fe); }
 .stat-count .stat-icon { background: linear-gradient(135deg, #fce7f3, #fbcfe8); }
 .stat-balance .stat-icon { background: linear-gradient(135deg, #d1fae5, #6ee7b7); }
-.stat-balance .stat-value { color: #059669; }
+
+.stat-income { border-left-color: #10b981; }
+.stat-expense { border-left-color: #f59e0b; }
+.stat-profit { border-left-color: #6366f1; }
+.stat-count { border-left-color: #ec4899; }
+.stat-balance { border-left-color: #10b981; }
 .stat-balance.stat-negative .stat-icon { background: linear-gradient(135deg, #fee2e2, #fca5a5); }
+.stat-balance.stat-negative { border-left-color: #ef4444; }
 .stat-balance.stat-negative .stat-value { color: #dc2626; }
 
 .stat-info {
@@ -408,12 +415,14 @@ body {
     font-size: 13px;
     color: var(--text-secondary);
     margin-bottom: 4px;
+    font-weight: 500;
 }
 
 .stat-value {
     font-size: 22px;
     font-weight: 700;
     color: var(--text);
+    line-height: 1.2;
 }
 
 .stat-income .stat-value { color: var(--success); }
@@ -1933,23 +1942,31 @@ textarea.form-input {
 
 /* Stat cards dark */
 [data-theme="dark"] .stat-card {
-    background: var(--surface);
-    border-color: var(--border);
+    background: #1a2744;
+    border-color: #2d4a7a;
+    border-left: 4px solid var(--border);
 }
-[data-theme="dark"] .stat-label { color: var(--text-secondary); }
-[data-theme="dark"] .stat-value { color: var(--text); }
-[data-theme="dark"] .stat-income .stat-value { color: var(--success); }
-[data-theme="dark"] .stat-expense .stat-value { color: var(--warning); }
-[data-theme="dark"] .stat-profit .stat-value { color: var(--primary-light); }
-
-[data-theme="dark"] .stat-income .stat-icon { background: rgba(16,185,129,0.15); }
-[data-theme="dark"] .stat-expense .stat-icon { background: rgba(245,158,11,0.15); }
-[data-theme="dark"] .stat-profit .stat-icon { background: rgba(129,140,248,0.15); }
-[data-theme="dark"] .stat-count .stat-icon { background: rgba(236,72,153,0.15); }
-[data-theme="dark"] .stat-balance .stat-icon { background: rgba(16,185,129,0.15); }
+[data-theme="dark"] .stat-label { color: #cbd5e1; font-weight: 500; }
+[data-theme="dark"] .stat-value { color: #f1f5f9; font-size: 24px; }
+[data-theme="dark"] .stat-income { border-left-color: #10b981; }
+[data-theme="dark"] .stat-income .stat-value { color: #34d399; }
+[data-theme="dark"] .stat-expense { border-left-color: #f59e0b; }
+[data-theme="dark"] .stat-expense .stat-value { color: #fbbf24; }
+[data-theme="dark"] .stat-profit { border-left-color: #818cf8; }
+[data-theme="dark"] .stat-profit .stat-value { color: #a5b4fc; }
+[data-theme="dark"] .stat-count { border-left-color: #ec4899; }
+[data-theme="dark"] .stat-count .stat-value { color: #f472b6; }
+[data-theme="dark"] .stat-balance { border-left-color: #10b981; }
 [data-theme="dark"] .stat-balance .stat-value { color: #34d399; }
-[data-theme="dark"] .stat-balance.stat-negative .stat-icon { background: rgba(239,68,68,0.15); }
+[data-theme="dark"] .stat-balance.stat-negative { border-left-color: #ef4444; }
 [data-theme="dark"] .stat-balance.stat-negative .stat-value { color: #f87171; }
+
+[data-theme="dark"] .stat-income .stat-icon { background: rgba(16,185,129,0.2); }
+[data-theme="dark"] .stat-expense .stat-icon { background: rgba(245,158,11,0.2); }
+[data-theme="dark"] .stat-profit .stat-icon { background: rgba(129,140,248,0.2); }
+[data-theme="dark"] .stat-count .stat-icon { background: rgba(236,72,153,0.2); }
+[data-theme="dark"] .stat-balance .stat-icon { background: rgba(16,185,129,0.2); }
+[data-theme="dark"] .stat-balance.stat-negative .stat-icon { background: rgba(239,68,68,0.2); }
 
 /* Cards dark */
 [data-theme="dark"] .card {
