@@ -221,8 +221,19 @@ const App = {
         // City select change
         document.getElementById('selectCity').addEventListener('change', (e) => this.onCityChange(e));
 
-        // Product select change
-        document.getElementById('selectProduct').addEventListener('change', (e) => this.onProductSelectChange(e));
+        // Product checklist: select all
+        document.getElementById('selectAllProducts').addEventListener('change', (e) => {
+            const checks = document.querySelectorAll('input[name="productCheck"]');
+            checks.forEach(c => c.checked = e.target.checked);
+            this.updateProductCheckState();
+        });
+
+        // Product checklist: individual items (delegated)
+        document.getElementById('productChecklistItems').addEventListener('change', (e) => {
+            if (e.target.name === 'productCheck') {
+                this.updateProductCheckState();
+            }
+        });
 
         // Auto-calculate total price
         ['productPrice', 'productQuantity'].forEach(id => {
@@ -1099,10 +1110,14 @@ const App = {
             citySelect.innerHTML = '<option value="">- Pilih Kota -</option>' +
                 cities.map(c => `<option value="${esc(c.id)}">${esc(c.name)} (${esc(c.initial)})</option>`).join('');
 
-            // Reset product dropdown
-            const productSelect = document.getElementById('selectProduct');
-            productSelect.innerHTML = '<option value="">- Pilih kota terlebih dahulu -</option>';
-            productSelect.disabled = true;
+            // Reset product checklist
+            const checklist = document.getElementById('productChecklist');
+            const items = document.getElementById('productChecklistItems');
+            const selectAll = document.getElementById('selectAllProducts');
+            checklist.classList.add('disabled');
+            selectAll.disabled = true;
+            selectAll.checked = false;
+            items.innerHTML = '<span class="checklist-empty">Pilih kota terlebih dahulu</span>';
 
             if (transactionId) {
                 const t = await DataStore.getTransaction(transactionId);
@@ -1110,8 +1125,7 @@ const App = {
                     title.textContent = 'Edit Transaksi';
                     document.getElementById('transactionId').value = t.id;
                     document.getElementById('selectCity').value = t.cityId || '';
-                    await this.onCityChange({ target: { value: t.cityId || '' } }, t.productId);
-                    document.getElementById('numberForm').value = t.numberForm || '';
+                    await this.onCityChange({ target: { value: t.cityId || '' } }, [t.productId]);
                     document.getElementById('productPly').value = t.ply || 4;
                     document.getElementById('productPrice').value = t.pricePerTitle || 0;
                     document.getElementById('productQuantity').value = t.quantity || 1;
@@ -1153,56 +1167,62 @@ const App = {
         });
     },
 
-    async onCityChange(e, preselectProductId = null) {
+    async onCityChange(e, preselectProductIds = null) {
         const cityId = e.target.value;
-        const productSelect = document.getElementById('selectProduct');
-        const initialInput = document.getElementById('productInitial');
-        const numberFormInput = document.getElementById('numberForm');
-        const sizeInput = document.getElementById('productSize');
+        const checklist = document.getElementById('productChecklist');
+        const items = document.getElementById('productChecklistItems');
+        const selectAll = document.getElementById('selectAllProducts');
 
         if (!cityId) {
-            productSelect.innerHTML = '<option value="">- Pilih kota terlebih dahulu -</option>';
-            productSelect.disabled = true;
-            initialInput.value = '';
-            numberFormInput.value = '';
-            sizeInput.value = '';
+            checklist.classList.add('disabled');
+            selectAll.disabled = true;
+            selectAll.checked = false;
+            items.innerHTML = '<span class="checklist-empty">Pilih kota terlebih dahulu</span>';
             return;
         }
 
         const city = await DataStore.getProduct(cityId);
         if (!city) return;
-
-        initialInput.value = city.initial;
-        numberFormInput.value = city.numberForm || '';
 
         const products = city.products || [];
-        productSelect.innerHTML = '<option value="">- Pilih Produk -</option>' +
-            products.map(p => `<option value="${esc(p.id)}" ${preselectProductId === p.id ? 'selected' : ''}>${esc(p.name)} ${esc(p.size)}</option>`).join('');
-        productSelect.disabled = false;
+        checklist.classList.remove('disabled');
+        selectAll.disabled = false;
+        selectAll.checked = false;
 
-        if (preselectProductId) {
-            await this.onProductSelectChange({ target: { value: preselectProductId } });
+        items.innerHTML = products.map(p => `
+            <label class="checklist-item">
+                <input type="checkbox" name="productCheck" value="${esc(p.id)}" data-name="${esc(p.name)}" data-size="${esc(p.size)}" data-initial="${esc(city.initial)}" data-number="${esc(city.numberForm || '')}" data-price="${p.defaultPrice || 0}" ${preselectProductIds && preselectProductIds.includes(p.id) ? 'checked' : ''}>
+                <span class="checklist-check"></span>
+                <span class="checklist-label">${esc(p.name)} ${esc(p.size)}</span>
+            </label>
+        `).join('');
+
+        // Set default price from first product
+        if (products.length > 0) {
+            document.getElementById('productPrice').value = products[0].defaultPrice || 0;
+            this.calculateTotal();
         }
+
+        this.updateProductCheckState();
     },
 
-    async onProductSelectChange(e) {
-        const productId = e.target.value;
-        const cityId = document.getElementById('selectCity').value;
-        const sizeInput = document.getElementById('productSize');
+    updateProductCheckState() {
+        const checks = document.querySelectorAll('input[name="productCheck"]');
+        const selectAll = document.getElementById('selectAllProducts');
+        const checked = document.querySelectorAll('input[name="productCheck"]:checked');
 
-        if (!productId || !cityId) {
-            sizeInput.value = '';
-            return;
-        }
-
-        const city = await DataStore.getProduct(cityId);
-        if (!city) return;
-
-        const product = (city.products || []).find(p => p.id === productId);
-        if (product) {
-            sizeInput.value = product.size;
-            document.getElementById('productPrice').value = product.defaultPrice || 0;
-            this.calculateTotal();
+        if (checks.length === 0) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        } else if (checked.length === checks.length) {
+            selectAll.checked = true;
+            selectAll.indeterminate = false;
+        } else if (checked.length > 0) {
+            selectAll.checked = false;
+            selectAll.indeterminate = true;
+        } else {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
         }
     },
 
@@ -1300,35 +1320,72 @@ const App = {
         try {
             const id = document.getElementById('transactionId').value;
             const cityId = document.getElementById('selectCity').value;
-            const productId = document.getElementById('selectProduct').value;
             const city = await DataStore.getProduct(cityId);
-            const product = city ? (city.products || []).find(p => p.id === productId) : null;
 
-            const data = {
-                cityId: cityId,
-                cityName: city ? city.name : '',
-                productId: productId,
-                productName: product ? product.name : '',
-                productInitial: city ? city.initial : '',
-                numberForm: document.getElementById('numberForm').value,
-                size: product ? product.size : '',
-                ply: parseInt(document.getElementById('productPly').value),
-                pricePerTitle: parseFloat(document.getElementById('productPrice').value) || 0,
-                quantity: parseInt(document.getElementById('productQuantity').value) || 1,
-                totalPrice: (parseFloat(document.getElementById('productPrice').value) || 0) *
-                            (parseInt(document.getElementById('productQuantity').value) || 1),
-                paymentStatus: document.querySelector('input[name="paymentStatus"]:checked').value,
-                materialCost: 0,
-                date: document.getElementById('transactionDate').value,
-                note: document.getElementById('transactionNote').value
-            };
-
+            // Edit mode: single transaction
             if (id) {
+                const checked = document.querySelector('input[name="productCheck"]:checked');
+                if (!checked) {
+                    this.showToast('Pilih minimal satu produk', 'error');
+                    return;
+                }
+                const data = {
+                    cityId: cityId,
+                    cityName: city ? city.name : '',
+                    productId: checked.value,
+                    productName: checked.dataset.name,
+                    productInitial: checked.dataset.initial,
+                    numberForm: checked.dataset.number,
+                    size: checked.dataset.size,
+                    ply: parseInt(document.getElementById('productPly').value),
+                    pricePerTitle: parseFloat(document.getElementById('productPrice').value) || 0,
+                    quantity: parseInt(document.getElementById('productQuantity').value) || 1,
+                    totalPrice: (parseFloat(document.getElementById('productPrice').value) || 0) *
+                                (parseInt(document.getElementById('productQuantity').value) || 1),
+                    paymentStatus: document.querySelector('input[name="paymentStatus"]:checked').value,
+                    materialCost: 0,
+                    date: document.getElementById('transactionDate').value,
+                    note: document.getElementById('transactionNote').value
+                };
                 await DataStore.updateTransaction(id, data);
                 this.showToast('Transaksi berhasil diupdate', 'success');
             } else {
-                await DataStore.addTransaction(data);
-                this.showToast('Transaksi berhasil ditambahkan', 'success');
+                // Create mode: one transaction per checked product
+                const checks = document.querySelectorAll('input[name="productCheck"]:checked');
+                if (checks.length === 0) {
+                    this.showToast('Pilih minimal satu produk', 'error');
+                    return;
+                }
+                const ply = parseInt(document.getElementById('productPly').value);
+                const pricePerTitle = parseFloat(document.getElementById('productPrice').value) || 0;
+                const quantity = parseInt(document.getElementById('productQuantity').value) || 1;
+                const paymentStatus = document.querySelector('input[name="paymentStatus"]:checked').value;
+                const date = document.getElementById('transactionDate').value;
+                const note = document.getElementById('transactionNote').value;
+
+                let count = 0;
+                for (const check of checks) {
+                    const data = {
+                        cityId: cityId,
+                        cityName: city ? city.name : '',
+                        productId: check.value,
+                        productName: check.dataset.name,
+                        productInitial: check.dataset.initial,
+                        numberForm: check.dataset.number,
+                        size: check.dataset.size,
+                        ply,
+                        pricePerTitle,
+                        quantity,
+                        totalPrice: pricePerTitle * quantity,
+                        paymentStatus,
+                        materialCost: 0,
+                        date,
+                        note
+                    };
+                    await DataStore.addTransaction(data);
+                    count++;
+                }
+                this.showToast(`${count} transaksi berhasil ditambahkan`, 'success');
             }
 
             this.closeModal();

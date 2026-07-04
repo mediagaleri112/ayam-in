@@ -485,6 +485,92 @@ body {
 }
 
 /* ============================================
+   Product Checklist
+   ============================================ */
+
+.product-checklist {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.product-checklist.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+}
+
+.checklist-item:last-child {
+    border-bottom: none;
+}
+
+.checklist-item:hover {
+    background: var(--surface);
+}
+
+.checklist-item input[type="checkbox"] {
+    display: none;
+}
+
+.checklist-check {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+
+.checklist-item input[type="checkbox"]:checked + .checklist-check {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.checklist-item input[type="checkbox"]:checked + .checklist-check::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.checklist-label {
+    font-size: 14px;
+    color: var(--text);
+}
+
+.checklist-all {
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+}
+
+.checklist-all .checklist-label {
+    font-weight: 600;
+}
+
+.checklist-empty {
+    display: block;
+    padding: 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* ============================================
    Empty State
    ============================================ */
 
@@ -747,6 +833,15 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
+}
+
+.products-grid .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
 }
 
 .product-card {
@@ -2070,6 +2165,22 @@ textarea.form-input {
 [data-theme="dark"] .filter-select:focus,
 [data-theme="dark"] .filter-date:focus {
     border-color: var(--primary);
+}
+
+/* Checklist dark */
+[data-theme="dark"] .product-checklist {
+    background: var(--bg);
+    border-color: var(--border);
+}
+[data-theme="dark"] .checklist-item:hover {
+    background: var(--surface);
+}
+[data-theme="dark"] .checklist-item {
+    border-bottom-color: var(--border);
+}
+[data-theme="dark"] .checklist-all {
+    background: var(--surface);
+    border-bottom-color: var(--border);
 }
 
 /* Modal dark */
