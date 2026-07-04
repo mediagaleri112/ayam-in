@@ -1,48 +1,56 @@
 /**
  * media.112 - Animations (Anime.js)
+ * All methods gracefully degrade when anime.js is unavailable
  */
 
 const Animations = {
 
-    // Page transition: stagger children fade in
+    _anime() {
+        return typeof anime !== 'undefined' ? anime : null;
+    },
+
     pageTransition(container) {
         const children = container.querySelectorAll('.stats-grid, .dashboard-grid, .page-header, .transactions-list, .products-grid, .expense-summary-cards, .cashflow-balance-card, .cashflow-summary-cards, .report-controls, .report-content, .card');
         if (!children.length) return;
+        const a = this._anime();
+        if (!a) { children.forEach(c => c.style.opacity = '1'); return; }
 
-        anime({
+        a({
             targets: children,
             opacity: [0, 1],
             translateY: [20, 0],
             duration: 400,
-            delay: anime.stagger(60),
+            delay: a.stagger(60),
             easing: 'easeOutCubic'
         });
     },
 
-    // List items stagger animation
     listStagger(container) {
         const items = container.querySelectorAll('.transaction-item, .product-card');
         if (!items.length) return;
+        const a = this._anime();
+        if (!a) { items.forEach(c => c.style.opacity = '1'); return; }
 
-        anime({
+        a({
             targets: items,
             opacity: [0, 1],
             translateY: [15, 0],
             scale: [0.98, 1],
             duration: 350,
-            delay: anime.stagger(40),
+            delay: a.stagger(40),
             easing: 'easeOutCubic'
         });
     },
 
-    // Modal open - overlayId is the .modal-overlay, dialog is the inner .modal
     modalOpen(overlayId) {
         const overlay = document.getElementById(overlayId);
         const dialog = overlay.querySelector('.modal');
         overlay.classList.add('active');
         overlay.style.opacity = '1';
+        const a = this._anime();
+        if (!a) return;
 
-        anime({
+        a({
             targets: dialog,
             scale: [0.85, 1],
             opacity: [0, 1],
@@ -52,12 +60,20 @@ const Animations = {
         });
     },
 
-    // Modal close
     modalClose(overlayId, callback) {
         const overlay = document.getElementById(overlayId);
         const dialog = overlay.querySelector('.modal');
+        const a = this._anime();
+        if (!a) {
+            overlay.classList.remove('active');
+            overlay.style.opacity = '';
+            dialog.style.transform = '';
+            dialog.style.opacity = '';
+            if (callback) callback();
+            return;
+        }
 
-        anime({
+        a({
             targets: dialog,
             scale: [1, 0.9],
             opacity: [1, 0],
@@ -74,10 +90,11 @@ const Animations = {
         });
     },
 
-    // Count-up number animation
     countUp(element, targetValue) {
+        const a = this._anime();
+        if (!a) { element.textContent = DataStore.formatCurrency(targetValue); return; }
         const obj = { value: 0 };
-        anime({
+        a({
             targets: obj,
             value: targetValue,
             duration: 800,
@@ -89,10 +106,11 @@ const Animations = {
         });
     },
 
-    // Count-up for plain numbers (not currency)
     countUpNumber(element, targetValue) {
+        const a = this._anime();
+        if (!a) { element.textContent = Math.round(targetValue); return; }
         const obj = { value: 0 };
-        anime({
+        a({
             targets: obj,
             value: targetValue,
             duration: 600,
@@ -104,9 +122,10 @@ const Animations = {
         });
     },
 
-    // Button press bounce
     buttonPress(element) {
-        anime({
+        const a = this._anime();
+        if (!a) return;
+        a({
             targets: element,
             scale: [1, 0.92, 1.03, 1],
             duration: 300,
@@ -114,9 +133,10 @@ const Animations = {
         });
     },
 
-    // Toast slide in from right
     toastIn(element) {
-        anime({
+        const a = this._anime();
+        if (!a) { element.style.opacity = '1'; return; }
+        a({
             targets: element,
             translateX: [120, 0],
             opacity: [0, 1],
@@ -125,9 +145,10 @@ const Animations = {
         });
     },
 
-    // Toast slide out to right
     toastOut(element, callback) {
-        anime({
+        const a = this._anime();
+        if (!a) { if (callback) callback(); return; }
+        a({
             targets: element,
             translateX: [0, 120],
             opacity: [1, 0],
@@ -139,9 +160,10 @@ const Animations = {
         });
     },
 
-    // Delete shake animation
     shake(element) {
-        anime({
+        const a = this._anime();
+        if (!a) return;
+        a({
             targets: element,
             translateX: [0, -8, 8, -6, 6, -3, 3, 0],
             duration: 400,
@@ -149,25 +171,27 @@ const Animations = {
         });
     },
 
-    // Stat cards entrance
     statCardsEntrance() {
         const cards = document.querySelectorAll('.stat-card');
         if (!cards.length) return;
+        const a = this._anime();
+        if (!a) { cards.forEach(c => c.style.opacity = '1'); return; }
 
-        anime({
+        a({
             targets: cards,
             opacity: [0, 1],
             translateY: [25, 0],
             scale: [0.95, 1],
             duration: 450,
-            delay: anime.stagger(80),
+            delay: a.stagger(80),
             easing: 'easeOutCubic'
         });
     },
 
-    // Progress bar animation
     progressBar(element, targetWidth) {
-        anime({
+        const a = this._anime();
+        if (!a) { element.style.width = targetWidth + '%'; return; }
+        a({
             targets: element,
             width: [0, targetWidth + '%'],
             duration: 800,
@@ -175,9 +199,10 @@ const Animations = {
         });
     },
 
-    // Fade in element
     fadeIn(element, duration = 300) {
-        anime({
+        const a = this._anime();
+        if (!a) { element.style.opacity = '1'; return; }
+        a({
             targets: element,
             opacity: [0, 1],
             translateY: [10, 0],

@@ -1,9 +1,10 @@
-const CACHE_NAME = 'media112-v10';
+const CACHE_NAME = 'media112-v11';
 const urlsToCache = [
     './',
     './index.html',
     './css/style.css',
     './js/supabase.js',
+    './js/anime.min.js',
     './js/data.js',
     './js/animations.js',
     './js/app.js',

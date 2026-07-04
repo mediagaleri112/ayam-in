@@ -1172,7 +1172,7 @@ const App = {
 
                     const products = p.products || [];
                     productsList.innerHTML = products.map((prod, i) => `
-                        <div class="city-product-item">
+                        <div class="city-product-item" data-product-id="${esc(prod.id)}">
                             <span class="product-num">${i + 1}.</span>
                             <input type="text" value="${esc(prod.name)}" class="city-prod-name" placeholder="Nama Produk">
                             <span class="product-size">${esc(prod.size)}</span>
@@ -1227,6 +1227,7 @@ const App = {
         this.editingProductId = null;
         this.editingExpenseId = null;
         this.deleteCallback = null;
+        document.getElementById('titipDanaField').style.display = 'none';
     },
 
     // =====================
@@ -1293,12 +1294,13 @@ const App = {
             const productItems = document.querySelectorAll('.city-product-item');
             const products = [];
             productItems.forEach((item, i) => {
+                const existingId = item.getAttribute('data-product-id');
                 const prodName = item.querySelector('.city-prod-name').value;
                 const prodPrice = parseFloat(item.querySelector('.city-prod-price').value) || 0;
                 const sizeEl = item.querySelector('.product-size');
                 const size = sizeEl ? sizeEl.textContent : (i < 3 ? '1/2' : '1/4');
                 products.push({
-                    id: DataStore.generateId(),
+                    id: existingId || DataStore.generateId(),
                     name: prodName,
                     size: size,
                     defaultPrice: prodPrice
@@ -1356,9 +1358,14 @@ const App = {
         });
     },
 
-    confirmDelete() {
+    async confirmDelete() {
         if (this.deleteCallback) {
-            this.deleteCallback();
+            try {
+                await this.deleteCallback();
+            } catch (err) {
+                console.error('Delete error:', err);
+                this.showToast('Gagal menghapus: ' + err.message, 'error');
+            }
         }
         this.closeDeleteModal();
     },

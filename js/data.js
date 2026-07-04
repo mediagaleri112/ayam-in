@@ -19,7 +19,7 @@ const DataStore = {
 
     // Input validation helpers
     _validateString(val, name, maxLen = 255) {
-        if (val === null || val === undefined) return null;
+        if (val === null || val === undefined || val === '') return null;
         if (typeof val !== 'string') return null;
         if (val.length > maxLen) throw new Error(`${name} maksimal ${maxLen} karakter`);
         return val.trim();
@@ -752,7 +752,7 @@ const DataStore = {
 
     async addCashflow(data) {
         const id = this.generateId();
-        const amt = this._validateNumber(data.amount, 'Nominal', 0, 99999999999);
+        const amt = this._validateNumber(data.amount, 'Nominal', 1, 99999999999);
         const desc = this._validateString(data.description, 'Keterangan', 500);
         const validTypes = ['in', 'out', 'adjust'];
         const type = validTypes.includes(data.type) ? data.type : 'in';
@@ -771,6 +771,7 @@ const DataStore = {
     },
 
     async updateCashflow(id, data) {
+        this._validateId(id);
         const validTypes = ['in', 'out', 'adjust'];
         const { error } = await db.from('cashflow').update({
             type: validTypes.includes(data.type) ? data.type : 'in',
@@ -820,8 +821,9 @@ const DataStore = {
     },
 
     async getCurrentBalance() {
-        const items = await this.getCashflow();
-        return items.reduce((balance, item) => {
+        const { data, error } = await db.from('cashflow').select('*').order('date', { ascending: true });
+        if (error) throw error;
+        return (data || []).reduce((balance, item) => {
             if (item.type === 'in') return balance + (item.amount || 0);
             if (item.type === 'out') return balance - (item.amount || 0);
             if (item.type === 'adjust') return item.amount || 0;
