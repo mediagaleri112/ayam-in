@@ -1595,12 +1595,12 @@ const App = {
                     </div>
                     <div class="summary-item expense">
                         <span class="summary-label">Total Pengeluaran</span>
-                        <span class="summary-value">${DataStore.formatCurrency(report.totalExpense)}</span>
-                        <span class="summary-sub">Material: ${DataStore.formatCurrency(report.txExpense)}<br>Vendor: ${DataStore.formatCurrency(report.bahanExpense)}</span>
+                        <span class="summary-value">-${DataStore.formatCurrency(report.totalExpense)}</span>
+                        <span class="summary-sub">Material: -${DataStore.formatCurrency(report.txExpense)}<br>Vendor: -${DataStore.formatCurrency(report.bahanExpense)}</span>
                     </div>
-                    <div class="summary-item profit">
+                    <div class="summary-item profit ${report.profit < 0 ? 'negative' : ''}">
                         <span class="summary-label">Laba Bersih</span>
-                        <span class="summary-value">${DataStore.formatCurrency(report.profit)}</span>
+                        <span class="summary-value ${report.profit < 0 ? 'negative' : ''}">${report.profit >= 0 ? '' : '-'}${DataStore.formatCurrency(Math.abs(report.profit))}</span>
                     </div>
                 </div>
             </div>
@@ -1701,7 +1701,7 @@ const App = {
                     <thead>
                         <tr>
                             <th>Tanggal</th>
-                            <th>Nama Bahan</th>
+                            <th>Nama Vendor</th>
                             <th>Qty</th>
                             <th>Harga Satuan</th>
                             <th>Total</th>

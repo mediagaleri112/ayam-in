@@ -1444,6 +1444,14 @@ body {
     background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
 }
 
+.summary-item.profit.negative {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+}
+
+.summary-value.negative {
+    color: var(--danger);
+}
+
 .summary-label {
     display: block;
     font-size: 13px;
@@ -1557,7 +1565,7 @@ body {
     background: var(--surface);
     border-radius: var(--radius-xl);
     width: 100%;
-    max-width: 640px;
+    max-width: 760px;
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-xl);
@@ -2465,8 +2473,10 @@ textarea.form-input {
 [data-theme="dark"] .summary-item.income { background: linear-gradient(135deg, #064e3b, #065f46); }
 [data-theme="dark"] .summary-item.expense { background: linear-gradient(135deg, #78350f, #92400e); }
 [data-theme="dark"] .summary-item.profit { background: linear-gradient(135deg, #312e81, #3730a3); }
+[data-theme="dark"] .summary-item.profit.negative { background: linear-gradient(135deg, #7f1d1d, #991b1b); }
 [data-theme="dark"] .summary-label { color: rgba(255,255,255,0.85); font-weight: 500; }
 [data-theme="dark"] .summary-value { color: #ffffff; font-size: 26px; }
+[data-theme="dark"] .summary-value.negative { color: #fca5a5; }
 [data-theme="dark"] .summary-sub { color: rgba(255,255,255,0.7); }
 
 /* City products list dark */
