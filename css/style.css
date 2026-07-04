@@ -399,6 +399,7 @@ body {
 
 .stat-income { border-left-color: #10b981; }
 .stat-expense { border-left-color: #f59e0b; }
+.stat-expense .stat-value { color: var(--danger); }
 .stat-profit { border-left-color: #6366f1; }
 .stat-count { border-left-color: #ec4899; }
 .stat-balance { border-left-color: #10b981; }
@@ -2189,7 +2190,7 @@ textarea.form-input {
 [data-theme="dark"] .stat-income { border-left-color: #10b981; }
 [data-theme="dark"] .stat-income .stat-value { color: #34d399; }
 [data-theme="dark"] .stat-expense { border-left-color: #f59e0b; }
-[data-theme="dark"] .stat-expense .stat-value { color: #fbbf24; }
+[data-theme="dark"] .stat-expense .stat-value { color: #f87171; }
 [data-theme="dark"] .stat-profit { border-left-color: #818cf8; }
 [data-theme="dark"] .stat-profit .stat-value { color: #a5b4fc; }
 [data-theme="dark"] .stat-count { border-left-color: #ec4899; }

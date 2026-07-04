@@ -469,7 +469,7 @@ const App = {
             // Animate stat cards entrance + count-up (no static write — countUp handles it)
             Animations.statCardsEntrance();
             Animations.countUp(document.getElementById('statIncome'), stats.totalIncome);
-            Animations.countUp(document.getElementById('statExpense'), stats.totalExpense);
+            Animations.countUp(document.getElementById('statExpense'), -stats.totalExpense);
             Animations.countUp(document.getElementById('statProfit'), stats.profit);
             Animations.countUpNumber(document.getElementById('statCount'), stats.totalTransactions);
             Animations.countUp(document.getElementById('statBalance'), balance);

@@ -96,7 +96,11 @@ const Animations = {
 
     countUp(element, targetValue) {
         const a = this._anime();
-        if (!a) { element.textContent = DataStore.formatCurrency(targetValue); return; }
+        if (!a) {
+            const prefix = targetValue < 0 ? '-' : '';
+            element.textContent = prefix + DataStore.formatCurrency(Math.abs(targetValue));
+            return;
+        }
         const obj = { value: 0 };
         a({
             targets: obj,
@@ -105,7 +109,9 @@ const Animations = {
             easing: 'easeOutExpo',
             round: 1,
             update: () => {
-                element.textContent = DataStore.formatCurrency(Math.round(obj.value));
+                const v = Math.round(obj.value);
+                const prefix = v < 0 ? '-' : '';
+                element.textContent = prefix + DataStore.formatCurrency(Math.abs(v));
             }
         });
     },
