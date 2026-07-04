@@ -395,7 +395,7 @@ const App = {
             dashboard: 'Dashboard',
             transactions: 'Transaksi',
             products: 'Produk',
-            expenses: 'Belanja Bahan',
+            expenses: 'Belanja Vendor',
             cashflow: 'Kas',
             reports: 'Laporan'
         };
@@ -711,7 +711,7 @@ const App = {
             container.innerHTML = `
                 <div class="empty-state">
                     <span class="empty-icon">🧾</span>
-                    <p>Belum ada catatan belanja bahan</p>
+                    <p>Belum ada catatan belanja vendor</p>
                     <button class="btn btn-primary" data-action="open-expense-modal">+ Tambah Belanja</button>
                 </div>
             `;
@@ -775,7 +775,7 @@ const App = {
             if (expenseId) {
                 const e = await DataStore.getExpense(expenseId);
                 if (e) {
-                    title.textContent = 'Edit Belanja Bahan';
+                    title.textContent = 'Edit Belanja Vendor';
                     document.getElementById('expenseId').value = e.id;
                     document.getElementById('expenseName').value = e.name;
                     document.getElementById('expenseQuantity').value = e.quantity;
@@ -790,7 +790,7 @@ const App = {
                     this.toggleTitipDanaField();
                 }
             } else {
-                title.textContent = 'Tambah Belanja Bahan';
+                title.textContent = 'Tambah Belanja Vendor';
                 form.reset();
                 document.getElementById('expenseId').value = '';
                 document.getElementById('expenseQuantity').value = '1';
@@ -867,10 +867,10 @@ const App = {
 
             if (id) {
                 await DataStore.updateExpense(id, data);
-                this.showToast('Belanja bahan berhasil diupdate', 'success');
+                this.showToast('Belanja vendor berhasil diupdate', 'success');
             } else {
                 await DataStore.addExpense(data);
-                this.showToast('Belanja bahan berhasil ditambahkan', 'success');
+                this.showToast('Belanja vendor berhasil ditambahkan', 'success');
             }
 
             this.closeExpenseModal();
@@ -888,7 +888,7 @@ const App = {
     async deleteExpense(id) {
         this.openDeleteModal(async () => {
             await DataStore.deleteExpense(id);
-            this.showToast('Belanja bahan berhasil dihapus', 'success');
+            this.showToast('Belanja vendor berhasil dihapus', 'success');
             await this.loadPageData(this.currentPage);
         });
     },
@@ -1596,7 +1596,7 @@ const App = {
                     <div class="summary-item expense">
                         <span class="summary-label">Total Pengeluaran</span>
                         <span class="summary-value">${DataStore.formatCurrency(report.totalExpense)}</span>
-                        <span class="summary-sub">Material: ${DataStore.formatCurrency(report.txExpense)}<br>Bahan: ${DataStore.formatCurrency(report.bahanExpense)}</span>
+                        <span class="summary-sub">Material: ${DataStore.formatCurrency(report.txExpense)}<br>Vendor: ${DataStore.formatCurrency(report.bahanExpense)}</span>
                     </div>
                     <div class="summary-item profit">
                         <span class="summary-label">Laba Bersih</span>
@@ -1695,7 +1695,7 @@ const App = {
 
             ${report.expenses.length > 0 ? `
             <div class="report-section">
-                <h3>Detail Belanja Bahan</h3>
+                <h3>Detail Belanja Vendor</h3>
                 <div class="report-table-wrap">
                 <table class="report-table">
                     <thead>
@@ -1712,7 +1712,7 @@ const App = {
                     <tbody>
                         ${expenseRows}
                         <tr class="total-row">
-                            <td colspan="4">TOTAL BELANJA BAHAN</td>
+                            <td colspan="4">TOTAL BELANJA VENDOR</td>
                             <td style="color: var(--danger)">-${DataStore.formatCurrency(report.bahanExpense)}</td>
                             <td colspan="2"></td>
                         </tr>
@@ -1757,19 +1757,36 @@ const App = {
                     </thead>
                     <tbody>
                         <tr>
-                            <td><span class="transaction-status status-lunas">Lunas</span></td>
+                            <td><span class="transaction-status status-lunas">Lunas (Transaksi)</span></td>
                             <td>${report.paid.length}</td>
                             <td>${DataStore.formatCurrency(report.paidAmount)}</td>
                         </tr>
                         <tr>
-                            <td><span class="transaction-status status-belum">Belum Bayar</span></td>
+                            <td><span class="transaction-status status-belum">Belum Bayar (Transaksi)</span></td>
                             <td>${report.unpaid.length}</td>
                             <td>${DataStore.formatCurrency(report.unpaidAmount)}</td>
                         </tr>
+                        <tr>
+                            <td><span class="transaction-status status-lunas">Lunas (Belanja Vendor)</span></td>
+                            <td>${report.expensesPaid.length}</td>
+                            <td style="color: var(--danger)">-${DataStore.formatCurrency(report.expensesPaidAmount)}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="transaction-status status-belum">Belum Bayar (Belanja Vendor)</span></td>
+                            <td>${report.expensesUnpaid.length}</td>
+                            <td style="color: var(--danger)">-${DataStore.formatCurrency(report.expensesUnpaidAmount)}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="transaction-status status-titip">Titip Dana (Belanja Vendor)</span></td>
+                            <td>${report.expensesTitip.length}</td>
+                            <td style="color: var(--danger)">-${DataStore.formatCurrency(report.expensesTitipAmount)}
+                                <br><small>Sisa: ${DataStore.formatCurrency(report.expensesTitipRemaining)}</small>
+                            </td>
+                        </tr>
                         <tr class="total-row">
                             <td>TOTAL</td>
-                            <td>${report.transactions.length}</td>
-                            <td>${DataStore.formatCurrency(report.totalIncome)}</td>
+                            <td>${report.transactions.length + report.expenses.length}</td>
+                            <td>${DataStore.formatCurrency(report.totalIncome)} / <span style="color: var(--danger)">-${DataStore.formatCurrency(report.totalExpense)}</span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1813,10 +1830,10 @@ const App = {
     async quickPayExpense(id) {
         try {
             const exp = await DataStore.getExpense(id);
-            if (!exp) throw new Error('Belanja bahan tidak ditemukan');
+            if (!exp) throw new Error('Belanja vendor tidak ditemukan');
             exp.paymentStatus = 'lunas';
             await DataStore.updateExpense(id, exp);
-            this.showToast('Belanja bahan ditandai sebagai lunas', 'success');
+            this.showToast('Belanja vendor ditandai sebagai lunas', 'success');
             await this.loadPageData(this.currentPage);
         } catch (err) {
             console.error('quickPayExpense error:', err);

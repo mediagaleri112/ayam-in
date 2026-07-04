@@ -68,7 +68,7 @@
             </a>
             <a href="#" class="nav-item" data-page="expenses">
                 <span class="nav-icon">🧾</span>
-                <span>Belanja Bahan</span>
+                <span>Belanja Vendor</span>
             </a>
             <a href="#" class="nav-item" data-page="cashflow">
                 <span class="nav-icon">💵</span>
@@ -162,7 +162,7 @@
                     <div class="dashboard-right-col">
                         <div class="card recent-expenses">
                             <div class="card-header">
-                                <h3>Belanja Bahan Terbaru</h3>
+                                <h3>Belanja Vendor Terbaru</h3>
                                 <a href="#" class="link" data-page="expenses">Lihat Semua</a>
                             </div>
                             <div class="card-body" id="recentExpenses">
@@ -241,7 +241,7 @@
                 </div>
             </section>
 
-            <!-- Expenses Page (Belanja Bahan) -->
+            <!-- Expenses Page (Belanja Vendor) -->
             <section class="page" id="page-expenses">
                 <div class="page-header">
                     <div class="page-header-row">
@@ -281,7 +281,7 @@
                 <div class="transactions-list" id="expensesList">
                     <div class="empty-state">
                         <span class="empty-icon">🧾</span>
-                        <p>Belum ada catatan belanja bahan</p>
+                        <p>Belum ada catatan belanja vendor</p>
                         <button class="btn btn-primary" data-action="open-expense-modal">+ Tambah Belanja</button>
                     </div>
                 </div>
@@ -477,11 +477,11 @@
         </div>
     </div>
 
-    <!-- Expense Modal (Belanja Bahan) -->
+    <!-- Expense Modal (Belanja Vendor) -->
     <div class="modal-overlay" id="expenseModal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="expenseModalTitle">Tambah Belanja Bahan</h2>
+                <h2 id="expenseModalTitle">Tambah Belanja Vendor</h2>
                 <button class="modal-close" data-action="close-expense-modal">✕</button>
             </div>
             <form id="expenseForm" class="modal-body">
