@@ -492,8 +492,9 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--bg);
-    max-height: 220px;
-    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
 }
 
 .product-checklist.disabled {
@@ -509,6 +510,16 @@ body {
     cursor: pointer;
     transition: background 0.15s;
     border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+}
+
+.checklist-item:nth-child(even) {
+    border-right: none;
+}
+
+.checklist-item:last-child,
+.checklist-item:nth-last-child(2):nth-child(odd) {
+    border-bottom: none;
 }
 
 .checklist-item:last-child {
@@ -556,6 +567,7 @@ body {
     background: var(--surface);
     border-bottom: 2px solid var(--border);
     font-weight: 600;
+    grid-column: 1 / -1;
 }
 
 .checklist-all .checklist-label {
