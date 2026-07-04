@@ -745,7 +745,7 @@ const App = {
                     </div>
                 </div>
                 <div class="transaction-amount">
-                    <div class="transaction-price">${DataStore.formatCurrency(e.totalCost)}</div>
+                    <div class="transaction-price expense-negative">-${DataStore.formatCurrency(e.totalCost)}</div>
                     <span class="transaction-status ${statusClass}">${statusText}</span>
                 </div>
                 ${showActions ? `
@@ -1547,7 +1547,7 @@ const App = {
                     <td>${esc(e.name)}</td>
                     <td>${esc(e.quantity)}</td>
                     <td>${DataStore.formatCurrency(e.unitPrice)}</td>
-                    <td>${DataStore.formatCurrency(e.totalCost)}</td>
+                    <td style="color: var(--danger)">-${DataStore.formatCurrency(e.totalCost)}</td>
                     <td>-</td>
                     <td><span class="transaction-status ${statusClass}">${statusText}</span>${titipInfo}</td>
                 </tr>
@@ -1704,7 +1704,7 @@ const App = {
                         ${expenseRows}
                         <tr class="total-row">
                             <td colspan="4">TOTAL BELANJA BAHAN</td>
-                            <td>${DataStore.formatCurrency(report.bahanExpense)}</td>
+                            <td style="color: var(--danger)">-${DataStore.formatCurrency(report.bahanExpense)}</td>
                             <td colspan="2"></td>
                         </tr>
                     </tbody>
