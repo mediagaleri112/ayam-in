@@ -715,6 +715,20 @@ const DataStore = {
         return expenses.filter(e => e.paymentStatus === 'titip').reduce((sum, e) => sum + (e.remainingAmount || 0), 0);
     },
 
+    // Single-query expense summary (replaces 4 separate fetches)
+    async getExpenseSummary() {
+        const expenses = await this.getExpenses();
+        let totalAll = 0, totalPaid = 0, totalUnpaid = 0, totalTitip = 0;
+        for (const e of expenses) {
+            const cost = e.totalCost || 0;
+            totalAll += cost;
+            if (e.paymentStatus === 'lunas') totalPaid += cost;
+            else if (e.paymentStatus === 'belum') totalUnpaid += cost;
+            else if (e.paymentStatus === 'titip') totalTitip += (e.titipAmount || 0);
+        }
+        return { totalAll, totalPaid, totalUnpaid, totalTitip };
+    },
+
     // =====================
     // CASHFLOW (Kas)
     // =====================
@@ -994,9 +1008,12 @@ const DataStore = {
     },
 
     async generateAdvancedReport(startDate, endDate) {
-        let transactions = await this.getTransactions();
-        let expenses = await this.getExpenses();
+        const allTransactions = await this.getTransactions();
+        const allExpenses = await this.getExpenses();
 
+        // Filter by date range for report period
+        let transactions = allTransactions;
+        let expenses = allExpenses;
         if (startDate) {
             transactions = transactions.filter(t => t.date >= startDate);
             expenses = expenses.filter(e => e.date >= startDate);
@@ -1027,8 +1044,7 @@ const DataStore = {
             byProduct[key].material += t.materialCost || 0;
         });
 
-        // Need all transactions for monthly trend and projection
-        const allTransactions = await this.getTransactions();
+        // Use allTransactions (unfiltered) for monthly trend and projection
         const now = new Date();
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);

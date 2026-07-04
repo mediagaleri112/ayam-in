@@ -44,7 +44,9 @@ const Animations = {
 
     modalOpen(overlayId) {
         const overlay = document.getElementById(overlayId);
+        if (!overlay) return;
         const dialog = overlay.querySelector('.modal');
+        if (!dialog) return;
         overlay.classList.add('active');
         overlay.style.opacity = '1';
         const a = this._anime();
@@ -62,7 +64,9 @@ const Animations = {
 
     modalClose(overlayId, callback) {
         const overlay = document.getElementById(overlayId);
+        if (!overlay) { if (callback) callback(); return; }
         const dialog = overlay.querySelector('.modal');
+        if (!dialog) { overlay.classList.remove('active'); if (callback) callback(); return; }
         const a = this._anime();
         if (!a) {
             overlay.classList.remove('active');

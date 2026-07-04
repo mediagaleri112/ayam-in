@@ -93,10 +93,14 @@ const App = {
     },
 
     initAutoLogout() {
-        // Auto logout saat tab/browser ditutup
+        // Tandai tab sebagai aktif
+        sessionStorage.setItem('media112_tab_active', '1');
         window.addEventListener('beforeunload', () => {
-            if (this.currentUser) {
-                // Hapus session dari Supabase
+            sessionStorage.removeItem('media112_tab_active');
+        });
+        // Jika tidak ada tab aktif (browser ditutup), paksa logout di load berikutnya
+        window.addEventListener('load', () => {
+            if (!sessionStorage.getItem('media112_tab_active') && this.currentUser) {
                 db.auth.signOut();
             }
         });
@@ -344,11 +348,14 @@ const App = {
         });
 
         // Sidebar overlay for mobile
-        const overlay = document.createElement('div');
-        overlay.className = 'sidebar-overlay';
-        overlay.id = 'sidebarOverlay';
+        let overlay = document.getElementById('sidebarOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'sidebar-overlay';
+            overlay.id = 'sidebarOverlay';
+            document.body.appendChild(overlay);
+        }
         overlay.addEventListener('click', () => this.closeSidebar());
-        document.body.appendChild(overlay);
     },
 
     // =====================
@@ -440,29 +447,20 @@ const App = {
                 DataStore.getCurrentBalance()
             ]);
 
-            document.getElementById('statIncome').textContent = DataStore.formatCurrency(stats.totalIncome);
-            document.getElementById('statExpense').textContent = DataStore.formatCurrency(stats.totalExpense);
-            document.getElementById('statProfit').textContent = DataStore.formatCurrency(stats.profit);
-            document.getElementById('statCount').textContent = stats.totalTransactions;
             document.getElementById('statPaid').textContent = stats.paid;
             document.getElementById('statUnpaid').textContent = stats.unpaid;
 
             const balanceEl = document.getElementById('statBalance');
-            balanceEl.textContent = DataStore.formatCurrency(balance);
             balanceEl.closest('.stat-card').classList.toggle('stat-negative', balance < 0);
 
-            // Animated progress bar
-            Animations.progressBar(document.getElementById('paymentProgress'), stats.paymentProgress);
-
-            // Animate stat cards entrance
+            // Animate stat cards entrance + count-up (no static write — countUp handles it)
             Animations.statCardsEntrance();
-
-            // Count-up animations
             Animations.countUp(document.getElementById('statIncome'), stats.totalIncome);
             Animations.countUp(document.getElementById('statExpense'), stats.totalExpense);
             Animations.countUp(document.getElementById('statProfit'), stats.profit);
             Animations.countUpNumber(document.getElementById('statCount'), stats.totalTransactions);
             Animations.countUp(document.getElementById('statBalance'), balance);
+            Animations.progressBar(document.getElementById('paymentProgress'), stats.paymentProgress);
 
             await this.loadRecentTransactions();
             await this.loadRecentExpenses();
@@ -668,15 +666,12 @@ const App = {
 
     async updateExpenseSummary() {
         try {
-        const totalAll = await DataStore.getTotalExpenseAmount();
-        const totalPaid = await DataStore.getPaidExpenseAmount();
-        const totalUnpaid = await DataStore.getUnpaidExpenseAmount();
-        const totalTitip = await DataStore.getTitipDanaAmount();
+        const summary = await DataStore.getExpenseSummary();
 
-        document.getElementById('expenseTotalAll').textContent = DataStore.formatCurrency(totalAll);
-        document.getElementById('expenseTotalPaid').textContent = DataStore.formatCurrency(totalPaid);
-        document.getElementById('expenseTotalUnpaid').textContent = DataStore.formatCurrency(totalUnpaid);
-        document.getElementById('expenseTotalTitip').textContent = DataStore.formatCurrency(totalTitip);
+        document.getElementById('expenseTotalAll').textContent = DataStore.formatCurrency(summary.totalAll);
+        document.getElementById('expenseTotalPaid').textContent = DataStore.formatCurrency(summary.totalPaid);
+        document.getElementById('expenseTotalUnpaid').textContent = DataStore.formatCurrency(summary.totalUnpaid);
+        document.getElementById('expenseTotalTitip').textContent = DataStore.formatCurrency(summary.totalTitip);
         } catch (err) {
             console.error('updateExpenseSummary error:', err);
         }
