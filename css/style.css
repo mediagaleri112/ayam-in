@@ -2131,8 +2131,12 @@ textarea.form-input {
     background: var(--surface);
     border-color: var(--border);
 }
-[data-theme="dark"] .expense-summary-label { color: var(--text-secondary); }
-[data-theme="dark"] .expense-summary-value { color: var(--text); }
+[data-theme="dark"] .expense-summary-label { color: var(--text-secondary); font-weight: 500; }
+[data-theme="dark"] .expense-summary-value { color: var(--text); font-size: 24px; }
+[data-theme="dark"] .expense-summary-card.total .expense-summary-value { color: #a5b4fc; }
+[data-theme="dark"] .expense-summary-card.paid .expense-summary-value { color: #34d399; }
+[data-theme="dark"] .expense-summary-card.unpaid .expense-summary-value { color: #f87171; }
+[data-theme="dark"] .expense-summary-card.titip .expense-summary-value { color: #a78bfa; }
 
 /* Cashflow dark */
 [data-theme="dark"] .cashflow-balance-card {
@@ -2189,9 +2193,12 @@ textarea.form-input {
 [data-theme="dark"] .analytics-desc { color: var(--text-secondary); }
 
 /* Summary dark */
-[data-theme="dark"] .summary-label { color: rgba(255,255,255,0.7); }
-[data-theme="dark"] .summary-value { color: white; }
-[data-theme="dark"] .summary-sub { color: rgba(255,255,255,0.6); }
+[data-theme="dark"] .summary-item.income { background: linear-gradient(135deg, #064e3b, #065f46); }
+[data-theme="dark"] .summary-item.expense { background: linear-gradient(135deg, #78350f, #92400e); }
+[data-theme="dark"] .summary-item.profit { background: linear-gradient(135deg, #312e81, #3730a3); }
+[data-theme="dark"] .summary-label { color: rgba(255,255,255,0.85); font-weight: 500; }
+[data-theme="dark"] .summary-value { color: #ffffff; font-size: 26px; }
+[data-theme="dark"] .summary-sub { color: rgba(255,255,255,0.7); }
 
 /* City products list dark */
 [data-theme="dark"] .city-product-item {
