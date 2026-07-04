@@ -1757,36 +1757,19 @@ const App = {
                     </thead>
                     <tbody>
                         <tr>
-                            <td><span class="transaction-status status-lunas">Lunas (Transaksi)</span></td>
+                            <td><span class="transaction-status status-lunas">Lunas</span></td>
                             <td>${report.paid.length}</td>
                             <td>${DataStore.formatCurrency(report.paidAmount)}</td>
                         </tr>
                         <tr>
-                            <td><span class="transaction-status status-belum">Belum Bayar (Transaksi)</span></td>
+                            <td><span class="transaction-status status-belum">Belum Bayar</span></td>
                             <td>${report.unpaid.length}</td>
                             <td>${DataStore.formatCurrency(report.unpaidAmount)}</td>
                         </tr>
-                        <tr>
-                            <td><span class="transaction-status status-lunas">Lunas (Belanja Bahan)</span></td>
-                            <td>${report.expensesPaid.length}</td>
-                            <td>${DataStore.formatCurrency(report.expensesPaidAmount)}</td>
-                        </tr>
-                        <tr>
-                            <td><span class="transaction-status status-belum">Belum Bayar (Belanja Bahan)</span></td>
-                            <td>${report.expensesUnpaid.length}</td>
-                            <td>${DataStore.formatCurrency(report.expensesUnpaidAmount)}</td>
-                        </tr>
-                        <tr>
-                            <td><span class="transaction-status status-titip">Titip Dana (Belanja Bahan)</span></td>
-                            <td>${report.expensesTitip.length}</td>
-                            <td>${DataStore.formatCurrency(report.expensesTitipAmount)}
-                                <br><small>Sisa: ${DataStore.formatCurrency(report.expensesTitipRemaining)}</small>
-                            </td>
-                        </tr>
                         <tr class="total-row">
                             <td>TOTAL</td>
-                            <td>${report.transactions.length + report.expenses.length}</td>
-                            <td>${DataStore.formatCurrency(report.totalIncome + report.totalExpense)}</td>
+                            <td>${report.transactions.length}</td>
+                            <td>${DataStore.formatCurrency(report.totalIncome)}</td>
                         </tr>
                     </tbody>
                 </table>
