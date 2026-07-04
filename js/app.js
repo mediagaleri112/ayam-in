@@ -1499,9 +1499,15 @@ const App = {
 
         // Build product summary table
         let productRows = '';
+        let totalProductQty = 0;
+        let totalProductRevenue = 0;
+        let totalProductProfit = 0;
         for (const [name, data] of Object.entries(report.byProduct)) {
             const prodProfit = data.total - data.material;
             const prodMargin = data.total > 0 ? Math.round((prodProfit / data.total) * 10000) / 100 : 0;
+            totalProductQty += data.count;
+            totalProductRevenue += data.total;
+            totalProductProfit += prodProfit;
             productRows += `
                 <tr>
                     <td>${esc(name)}</td>
@@ -1512,6 +1518,7 @@ const App = {
                 </tr>
             `;
         }
+        const totalProductMargin = totalProductRevenue > 0 ? Math.round((totalProductProfit / totalProductRevenue) * 10000) / 100 : 0;
 
         // Build transaction details table
         let transactionRows = '';
@@ -1671,14 +1678,16 @@ const App = {
                         </tr>
                     </thead>
                     <tbody>
-                        ${productRows}
+                        ${productRows || '<tr><td colspan="5" style="text-align:center">Belum ada data</td></tr>'}
+                        ${productRows ? `
                         <tr class="total-row">
                             <td>TOTAL</td>
-                            <td></td>
-                            <td>${DataStore.formatCurrency(report.totalIncome)}</td>
-                            <td>${DataStore.formatCurrency(report.profit)}</td>
-                            <td>${report.profitMargin}%</td>
+                            <td>${totalProductQty}</td>
+                            <td>${DataStore.formatCurrency(totalProductRevenue)}</td>
+                            <td>${DataStore.formatCurrency(totalProductProfit)}</td>
+                            <td>${totalProductMargin}%</td>
                         </tr>
+                        ` : ''}
                     </tbody>
                 </table>
                 </div>
