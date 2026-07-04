@@ -867,7 +867,12 @@ const DataStore = {
 
         const totalIncome = transactions.reduce((sum, t) => sum + (t.totalPrice || 0), 0);
         const totalMaterialFromTx = transactions.reduce((sum, t) => sum + (t.materialCost || 0), 0);
-        const totalExpenseFromExpenses = expenses.reduce((sum, e) => sum + (e.totalCost || 0), 0);
+        // Belanja bahan: hanya lunas + nominal titip yang dihitung sebagai pengeluaran
+        const totalExpenseFromExpenses = expenses.reduce((sum, e) => {
+            if (e.paymentStatus === 'lunas') return sum + (e.totalCost || 0);
+            if (e.paymentStatus === 'titip') return sum + (e.titipAmount || 0);
+            return sum; // belum bayar = tidak dihitung
+        }, 0);
         const totalExpense = totalMaterialFromTx + totalExpenseFromExpenses;
         const profit = totalIncome - totalExpense;
 
@@ -886,7 +891,11 @@ const DataStore = {
         const monthlyIncome = monthlyTransactions.reduce((sum, t) => sum + (t.totalPrice || 0), 0);
         const monthlyExpenseTx = monthlyTransactions.reduce((sum, t) => sum + (t.materialCost || 0), 0);
         const monthlyExpenses = expenses.filter(e => e.date && e.date.startsWith(thisMonth));
-        const monthlyExpenseBahan = monthlyExpenses.reduce((sum, e) => sum + (e.totalCost || 0), 0);
+        const monthlyExpenseBahan = monthlyExpenses.reduce((sum, e) => {
+            if (e.paymentStatus === 'lunas') return sum + (e.totalCost || 0);
+            if (e.paymentStatus === 'titip') return sum + (e.titipAmount || 0);
+            return sum;
+        }, 0);
         const monthlyExpense = monthlyExpenseTx + monthlyExpenseBahan;
 
         return {
@@ -907,7 +916,12 @@ const DataStore = {
     getProfitMargin(transactions, expenses) {
         const totalIncome = transactions.reduce((sum, t) => sum + (t.totalPrice || 0), 0);
         const txExpense = transactions.reduce((sum, t) => sum + (t.materialCost || 0), 0);
-        const bahanExpense = expenses.reduce((sum, e) => sum + (e.totalCost || 0), 0);
+        // Belanja bahan: hanya lunas + nominal titip
+        const bahanExpense = expenses.reduce((sum, e) => {
+            if (e.paymentStatus === 'lunas') return sum + (e.totalCost || 0);
+            if (e.paymentStatus === 'titip') return sum + (e.titipAmount || 0);
+            return sum;
+        }, 0);
         const totalExpense = txExpense + bahanExpense;
         const profit = totalIncome - totalExpense;
         if (totalIncome === 0) return 0;
@@ -917,7 +931,12 @@ const DataStore = {
     getMaterialEfficiency(transactions, expenses) {
         const totalIncome = transactions.reduce((sum, t) => sum + (t.totalPrice || 0), 0);
         const txExpense = transactions.reduce((sum, t) => sum + (t.materialCost || 0), 0);
-        const bahanExpense = expenses.reduce((sum, e) => sum + (e.totalCost || 0), 0);
+        // Belanja bahan: hanya lunas + nominal titip
+        const bahanExpense = expenses.reduce((sum, e) => {
+            if (e.paymentStatus === 'lunas') return sum + (e.totalCost || 0);
+            if (e.paymentStatus === 'titip') return sum + (e.titipAmount || 0);
+            return sum;
+        }, 0);
         const totalExpense = txExpense + bahanExpense;
         if (totalIncome === 0) return 0;
         return Math.round((totalExpense / totalIncome) * 10000) / 100;
@@ -995,7 +1014,13 @@ const DataStore = {
 
         const totalIncome = transactions.reduce((sum, t) => sum + (t.totalPrice || 0), 0);
         const txExpense = transactions.reduce((sum, t) => sum + (t.materialCost || 0), 0);
-        const bahanExpense = expenses.reduce((sum, e) => sum + (e.totalCost || 0), 0);
+        // Belanja bahan: hanya lunas + nominal titip yang dihitung sebagai pengeluaran
+        // Belum bayar = hutang, bukan pengeluaran
+        const bahanExpense = expenses.reduce((sum, e) => {
+            if (e.paymentStatus === 'lunas') return sum + (e.totalCost || 0);
+            if (e.paymentStatus === 'titip') return sum + (e.titipAmount || 0);
+            return sum; // belum bayar = tidak dihitung
+        }, 0);
         const totalExpense = txExpense + bahanExpense;
         const profit = totalIncome - totalExpense;
 
@@ -1024,7 +1049,14 @@ const DataStore = {
             const tx = allTransactions.filter(t => t.date && t.date.startsWith(month));
             const exp = expenses.filter(e => e.date && e.date.startsWith(month));
             const income = tx.reduce((s, t) => s + (t.totalPrice || 0), 0);
-            const expense = tx.reduce((s, t) => s + (t.materialCost || 0), 0) + exp.reduce((s, e) => s + (e.totalCost || 0), 0);
+            const txExp = tx.reduce((s, t) => s + (t.materialCost || 0), 0);
+            // Belanja bahan: hanya lunas + nominal titip
+            const bahanExp = exp.reduce((s, e) => {
+                if (e.paymentStatus === 'lunas') return s + (e.totalCost || 0);
+                if (e.paymentStatus === 'titip') return s + (e.titipAmount || 0);
+                return s;
+            }, 0);
+            const expense = txExp + bahanExp;
             return { income, expense, profit: income - expense, txCount: tx.length, expCount: exp.length };
         };
         const current = getMonthData(currentMonth);
