@@ -672,10 +672,10 @@ const App = {
         try {
         const summary = await DataStore.getExpenseSummary();
 
-        document.getElementById('expenseTotalAll').textContent = DataStore.formatCurrency(summary.totalAll);
-        document.getElementById('expenseTotalPaid').textContent = DataStore.formatCurrency(summary.totalPaid);
-        document.getElementById('expenseTotalUnpaid').textContent = DataStore.formatCurrency(summary.totalUnpaid);
-        document.getElementById('expenseTotalTitip').textContent = DataStore.formatCurrency(summary.totalTitip);
+        document.getElementById('expenseTotalAll').textContent = '-' + DataStore.formatCurrency(summary.totalAll);
+        document.getElementById('expenseTotalPaid').textContent = '-' + DataStore.formatCurrency(summary.totalPaid);
+        document.getElementById('expenseTotalUnpaid').textContent = '-' + DataStore.formatCurrency(summary.totalUnpaid);
+        document.getElementById('expenseTotalTitip').textContent = '-' + DataStore.formatCurrency(summary.totalTitip);
         } catch (err) {
             console.error('updateExpenseSummary error:', err);
         }

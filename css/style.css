@@ -1057,10 +1057,10 @@ body {
     font-weight: 700;
 }
 
-.expense-summary-card.total .expense-summary-value { color: var(--primary); }
-.expense-summary-card.paid .expense-summary-value { color: var(--success); }
+.expense-summary-card.total .expense-summary-value { color: var(--danger); }
+.expense-summary-card.paid .expense-summary-value { color: var(--danger); }
 .expense-summary-card.unpaid .expense-summary-value { color: var(--danger); }
-.expense-summary-card.titip .expense-summary-value { color: #8b5cf6; }
+.expense-summary-card.titip .expense-summary-value { color: var(--danger); }
 
 .titip-info {
     color: #8b5cf6;
@@ -2411,10 +2411,10 @@ textarea.form-input {
 }
 [data-theme="dark"] .expense-summary-label { color: var(--text-secondary); font-weight: 500; }
 [data-theme="dark"] .expense-summary-value { color: var(--text); font-size: 24px; }
-[data-theme="dark"] .expense-summary-card.total .expense-summary-value { color: #a5b4fc; }
-[data-theme="dark"] .expense-summary-card.paid .expense-summary-value { color: #34d399; }
+[data-theme="dark"] .expense-summary-card.total .expense-summary-value { color: #f87171; }
+[data-theme="dark"] .expense-summary-card.paid .expense-summary-value { color: #f87171; }
 [data-theme="dark"] .expense-summary-card.unpaid .expense-summary-value { color: #f87171; }
-[data-theme="dark"] .expense-summary-card.titip .expense-summary-value { color: #a78bfa; }
+[data-theme="dark"] .expense-summary-card.titip .expense-summary-value { color: #f87171; }
 
 /* Cashflow dark */
 [data-theme="dark"] .cashflow-balance-card {
